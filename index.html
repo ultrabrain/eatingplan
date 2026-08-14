@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Justin — Malaysian Eating Plan</title>
+<!-- Keep this out of Google. GitHub Pages requires a public repo on the free tier,
+     so this page is reachable by URL — but it should not be indexed or crawled. -->
+<meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1c5cab" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eating Plan">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5; --seq-550:#1c5cab; --seq-700:#0d366b;
+  --success-text:#006300;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --seq-100:#0d366b; --seq-250:#184f95; --seq-400:#2a78d6; --seq-550:#5598e7; --seq-700:#9ec5f4;
+    --success-text:#0ca30c;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px;
+  padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right));
+  padding-bottom:max(80px,env(safe-area-inset-bottom))}
+@media(max-width:560px){
+  body{font-size:15.5px}
+  h1{font-size:24px}
+  .card{padding:16px;border-radius:12px}
+  .wrap{padding-top:18px}
+  table{font-size:13px}
+  th,td{padding:7px 6px}
+  .mb .track{width:44px}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(132px,1fr))}
+}
+h1{font-size:29px;line-height:1.15;margin:0 0 6px;letter-spacing:-0.02em}
+h2{font-size:20px;margin:0 0 4px;letter-spacing:-0.01em}
+h3{font-size:15px;margin:22px 0 8px;letter-spacing:-0.005em}
+.sub{color:var(--ink-2);font-size:14px;margin:0}
+.card{background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;padding:22px;margin:16px 0}
+.sec-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.sec-head .n{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
+.hr{height:1px;background:var(--grid);border:0;margin:20px 0}
+
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-top:14px}
+.tile{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:13px 14px}
+.tile .lab{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);font-weight:600}
+.tile .val{font-size:25px;font-weight:650;margin:3px 0 1px;letter-spacing:-0.02em}
+.tile .tgt{font-size:12.5px;color:var(--ink-2)}
+.tile .bar{height:5px;border-radius:3px;background:var(--grid);margin-top:9px;overflow:hidden}
+.tile .bar i{display:block;height:100%;border-radius:3px}
+
+/* badges */
+.b{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:2.5px 8px;border-radius:20px;white-space:nowrap;line-height:1.4}
+.b.ok{background:rgba(12,163,12,.13);color:var(--success-text)}
+.b.care{background:rgba(250,178,25,.20);color:#8a5c00}
+.b.limit{background:rgba(236,131,90,.20);color:#a2461c}
+.b.no{background:rgba(208,59,59,.15);color:#a12b2b}
+.b.neutral{background:var(--grid);color:var(--ink-2)}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])) .b.care{color:#fab219}
+  :root:where(:not([data-theme="light"])) .b.limit{color:#ec835a}
+  :root:where(:not([data-theme="light"])) .b.no{color:#e66767}
+}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:650;padding:7px 9px;border-bottom:1px solid var(--axis);white-space:nowrap}
+td{padding:8px 9px;border-bottom:1px solid var(--grid);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.dish{font-weight:600}
+.note{color:var(--ink-2);font-size:12.5px}
+.scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+
+/* magnitude bar in table */
+.mb{display:flex;align-items:center;gap:7px;justify-content:flex-end}
+.mb .track{width:74px;height:7px;background:var(--grid);border-radius:4px;overflow:hidden;flex:none;position:relative}
+.mb .track i{display:block;height:100%;border-radius:4px;background:var(--seq-400)}
+.mb .track i.hi{background:var(--seq-700)}
+.mb .track i.lo{background:var(--seq-250)}
+.mb .v{font-variant-numeric:tabular-nums;min-width:38px;text-align:right;font-size:12.5px}
+
+/* chart */
+.chart{margin-top:6px}
+.crow{display:grid;grid-template-columns:190px 1fr 56px;align-items:center;gap:10px;padding:3px 0}
+.crow .cl{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctrack{position:relative;height:17px;background:linear-gradient(to right,var(--grid) 0 1px,transparent 1px) repeat-x;background-size:0 0}
+.cbar{height:15px;border-radius:0 4px 4px 0;background:var(--seq-400)}
+.cbar.over{background:var(--critical)}
+.cbar.mid{background:var(--seq-550)}
+.cbar.under{background:var(--seq-250)}
+.cval{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink-2);text-align:right}
+.climit{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink-2);opacity:.55}
+.climit-lab{font-size:11px;color:var(--ink-2);margin-top:4px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:10px 0 2px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+/* misc */
+ul{margin:8px 0;padding-left:19px}
+li{margin:5px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}.crow{grid-template-columns:130px 1fr 50px}}
+.callout{border-left:3px solid var(--s1);background:rgba(42,120,214,.06);padding:12px 15px;border-radius:0 8px 8px 0;margin:14px 0;font-size:14px}
+.callout.warn{border-color:var(--critical);background:rgba(208,59,59,.06)}
+.callout.win{border-color:var(--good);background:rgba(12,163,12,.06)}
+.callout b{font-weight:650}
+.rule{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--grid)}
+.rule:last-child{border-bottom:0}
+.rule .rn{flex:none;width:26px;height:26px;border-radius:50%;background:var(--s1);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+.rule .rt{font-weight:650;margin-bottom:2px}
+.rule .rd{color:var(--ink-2);font-size:13.5px}
+.src{font-size:11.5px;color:var(--muted);margin-top:10px}
+.src a{color:var(--muted)}
+a{color:var(--s1)}
+.day{border:1px solid var(--ring);border-radius:11px;padding:13px 15px;background:var(--surface-1)}
+.day h4{margin:0 0 7px;font-size:13.5px;letter-spacing:0.02em}
+.day .m{font-size:13px;margin:5px 0;color:var(--ink-2)}
+.day .m b{color:var(--ink);font-weight:600}
+.days{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px}
+.tag{font-size:10.5px;color:var(--muted);border:1px solid var(--grid);border-radius:5px;padding:1px 5px;margin-left:5px;vertical-align:1px;white-space:nowrap}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:6px 0;font-size:13.5px}
+.chk i{flex:none;width:15px;height:15px;border:1.5px solid var(--axis);border-radius:4px;margin-top:3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Eating plan — built around your 14 Aug 2026 results</h1>
+  <p class="sub">Justin, 40M · 178 cm · 80.6 kg · marathon runner · shellfish allergy · Crestor (rosuvastatin) + Ezetrol (ezetimibe 10 mg) from 14 Aug · CT coronary angiogram in ~1 month</p>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="lab">LDL-C</div><div class="val">5.2</div>
+      <div class="tgt">mmol/L → target &lt;1.9 <span class="tag">statin does this</span></div>
+      <div class="bar"><i style="width:100%;background:var(--critical)"></i></div>
+    </div>
+    <div class="tile">
+      <div class="lab">Calcium score</div><div class="val">91</div>
+      <div class="tgt">RCA only · 90th–100th pctile <span class="tag">per your report</span></div>
+      <div class="bar"><i style="width:78%;background:var(--serious)"></i></div>
+    </div>
+    <div class="tile">
+      <div class="lab">HbA1c</div><div class="val">5.8%</div>
+      <div class="tgt">prediabetes → target &lt;5.7%</div>
+      <div class="bar"><i style="width:55%;background:var(--warning)"></i></div>
+    </div>
+    <div class="tile">
+      <div class="lab">Uric acid</div><div class="val">500</div>
+      <div class="tgt">µmol/L → ref &lt;420 <span class="tag">retest rested</span></div>
+      <div class="bar"><i style="width:62%;background:var(--warning)"></i></div>
+    </div>
+    <div class="tile">
+      <div class="lab">Blood pressure</div><div class="val">127/95</div>
+      <div class="tgt">diastolic ≥90 = hypertension</div>
+      <div class="bar"><i style="width:70%;background:var(--serious)"></i></div>
+    </div>
+    <div class="tile">
+      <div class="lab">Weight</div><div class="val">80.6</div>
+      <div class="tgt">kg → first target 75 kg (−7%)</div>
+      <div class="bar"><i style="width:45%;background:var(--s1)"></i></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HONEST FRAMING ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Read this first</span></div>
+  <h2>What this plan can and can't do</h2>
+  <p style="margin-top:8px">Four numbers are off. They do <b>not</b> respond to diet equally, and pretending otherwise would waste your effort.</p>
+
+  <div class="scroll"><table>
+    <thead><tr><th>Marker</th><th>How much diet moves it</th><th style="width:34%">What actually fixes it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="dish">LDL 5.2</td>
+        <td><span class="b limit">◐ 10–20% at best</span> <span class="note">≈ −0.5 to −1.0 mmol/L. You're already lean and running, so the two biggest population levers are spent.</span></td>
+        <td><b>The statin.</b> Diet is the add-on. Your cardiologist is right.</td>
+      </tr>
+      <tr>
+        <td class="dish">BP 127/95</td>
+        <td><span class="b ok">● 3–6 mmHg diastolic</span> <span class="note">DASH pattern + sodium cut + weight loss, stacked.</span></td>
+        <td>Diet may be enough — <b>if</b> home readings confirm it. Verify first.</td>
+      </tr>
+      <tr>
+        <td class="dish">HbA1c 5.8%</td>
+        <td><span class="b ok">● Large</span> <span class="note">Weight loss is the dominant lever: 16% lower diabetes risk per kg lost.</span></td>
+        <td><b>Diet wins here.</b> ~5.6 kg is the evidence-backed target.</td>
+      </tr>
+      <tr>
+        <td class="dish">Uric acid 500</td>
+        <td><span class="b care">◐ 60–120 µmol/L</span> <span class="note">Sugary drinks and dried anchovy are the real targets, not "purines" broadly.</span></td>
+        <td>Partly diet — but see the running note below. <b>Retest before concluding anything.</b></td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout warn">
+    <b>Your uric acid may be substantially a training artefact.</b> Hard running raises serum urate through three mechanisms at once: ATP breakdown generates urate directly, blood lactate competes with urate for the same kidney transporter (URAT1), and sweat losses in Malaysian heat concentrate it. In a study of repeated hard sessions, urate rose from 5.9 to 9.8 mg/dL across three consecutive training days and had <em>not</em> washed out overnight. Population data show a V-shaped curve: activity lowers urate up to ~700 kcal/day, then <em>raises</em> it above that — a 4–5×/week marathon runner is on the rising limb.
+    <br><br><b>Action:</b> repeat the fasting uric acid after 3–5 days of easy running only, well hydrated, ≥48 h from any long run or interval session. The difference could plausibly be 50–150 µmol/L, and it changes what you should do.
+  </div>
+
+  <div class="callout">
+    <b>Also worth knowing:</b> at 500 µmol/L with no gout attacks, normal kidneys and no tophi, the 2020 ACR guideline <em>conditionally recommends against</em> starting urate-lowering drugs. Only ~20% of people above 9 mg/dL (535 µmol/L) develop gout within 5 years, and you're below that. And no urate-lowering drug has ever been shown to reduce cardiovascular events (ALL-HEART, 5,721 patients: 11.0% vs 11.3%, p=0.65). So treat uric acid as a marker travelling with the rest of the cluster — not as a separate cardiac target to chase.
+  </div>
+</section>
+
+<!-- ============ THE RULES ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">The plan</span></div>
+  <h2>Seven rules, in order of how much they buy you</h2>
+  <p class="sub" style="margin-top:6px">If you only ever do three things, do 1, 2 and 3.</p>
+
+  <div style="margin-top:14px">
+    <div class="rule"><div class="rn">1</div><div>
+      <div class="rt">Drink your calories to zero</div>
+      <div class="rd">A standard <b>teh tarik is ~23 g sugar per 250 ml glass</b> — 5 to 6 teaspoons. Kopi is ~19 g. Two a day is ~40 g of sugar, roughly 300 kcal, and liquid fructose is the one dietary input that <em>generates</em> uric acid rather than just delivering it. Sugary drinks: 33% higher odds of hyperuricaemia, 21% higher odds of gout. This single change hits weight, HbA1c and urate simultaneously. <b>"Kurang manis" is not enough</b> — most of the sugar lives inside the sweetened condensed milk, which the uncle doesn't adjust when he reduces the spooned sugar. You need <b>kosong</b>, or change the milk (teh-C uses evaporated, not condensed).</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">2</div><div>
+      <div class="rt">Get to 75 kg — then reassess</div>
+      <div class="rd">That's −5.6 kg (7%), the threshold used by the Diabetes Prevention Program (58% risk reduction) and the Malaysian T2DM CPG. The ReTUNE trial — the only one run in <em>non-obese</em> people, mean BMI 24.8, almost exactly you — found a median 6.5% loss achieved diabetes remission in 70% of participants. Aim ~0.4 kg/week. <b>Your InBody's 73 kg target is beyond where the evidence stops</b>, and losing 7.6 kg of pure fat would put you near 15% body fat — an athlete composition, not a health target. Treat 73 kg as a conditional stretch goal only if HbA1c hasn't normalised at 75 kg. Don't crash-diet: fasting <em>raises</em> uric acid by 1.1–2.4 mg/dL, and under-fuelling marathon training is its own problem.</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">3</div><div>
+      <div class="rt">Don't drink the soup</div>
+      <div class="rd">Every Malaysian dish measured above 2,000 mg sodium per serving is a bowl of soup or gravy noodles. <b>Soto is 3,169 mg — 158% of your entire daily limit in one bowl.</b> Malaysian men already average 3,519 mg/day against a 2,000 mg target, and cooked food bought away from home is the main vector. Order <em>kuah asing</em>, eat the noodles, leave the broth. Cutting ~1,725 mg/day is worth about −5.4/−2.8 mmHg.</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">4</div><div>
+      <div class="rt">Santan and deep-fried are the saturated-fat problem — not eggs, not coconut water</div>
+      <div class="rd">Your budget is roughly <b>17 g saturated fat/day</b> (7% of ~2,200 kcal). One roti john is <b>18 g</b>; one bowl of curry laksa is <b>17.8 g</b>. Head-to-head, coconut oil raises LDL more than palm oil (+0.53 mmol/L) and more than non-tropical oils (+0.27). Swapping ~7% of energy from saturated to polyunsaturated fat predicts about <b>−0.36 mmol/L LDL</b>. At home: soybean, canola, sunflower, corn, olive or peanut oil instead of palm/coconut. Santan becomes occasional, not daily.</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">5</div><div>
+      <div class="rt">Vegetables and protein before the rice — then walk 10 minutes</div>
+      <div class="rd">In people with prediabetes, eating vegetables and protein first with a 10-minute gap cut the glucose area-under-curve by <b>38.8%</b> and the peak by over 40%. Free, no food changes needed. Then a <b>10-minute walk after each meal</b> lowers postprandial glucose 12% on average and 22% after dinner — and that trial matched total walking volume, so the benefit came purely from <em>timing</em>. You already run; just move some of it to after meals.</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">6</div><div>
+      <div class="rt">Fix the potassium deficit — it's bigger than the sodium excess</div>
+      <div class="rd">Malaysian adults average <b>37 mmol potassium/day (~1,450 mg) against a 3,510 mg WHO target</b> — 99% fall short. Raising potassium is worth about −5.3/−3.1 mmHg in hypertensive adults. Local sources are cheap and everywhere: bayam, kangkung, pucuk paku, sweet potato and its leaves, labu, tomatoes, dhal, chickpeas, tempeh, papaya, guava, watermelon, banana. <b>Pisang berangan has a measured GI of 55</b> — rare in being both high-potassium and low-GI.</div>
+    </div></div>
+
+    <div class="rule"><div class="rn">7</div><div>
+      <div class="rt">Stack the four LDL foods daily</div>
+      <div class="rd">The "Portfolio diet" combination lowers LDL ~17% in trials, ~13–14% free-living. Components with their own evidence: <b>plant sterols</b> (biggest single add-on — an extra 8–9% on top of a statin, equal to doubling the dose), <b>viscous fibre</b> ≥3 g β-glucan (−0.25 mmol/L), <b>nuts</b> 28–42 g (−0.12 mmol/L), <b>soy protein</b> ~25 g (−3.2%). See the daily stack section below.</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============ SAT FAT CHART ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Weekday lunch</span></div>
+  <h2>Saturated fat per serving vs your daily budget</h2>
+  <p class="sub">Your ceiling is about 17 g for the whole day. The line marks it.</p>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--seq-250)"></i> comfortable</span>
+    <span><i class="sw" style="background:var(--seq-550)"></i> most of the day's budget</span>
+    <span><i class="sw" style="background:var(--critical)"></i> blows the budget alone</span>
+    <span><i class="sw" style="background:var(--ink-2);width:2px;height:13px;border-radius:1px"></i> 17 g daily limit</span>
+  </div>
+
+  <div class="chart" id="satchart"></div>
+  <p class="climit-lab">Grams saturated fat per typical serving. Malaysian lab measurements (Foods 2023, 39 street foods, GC-FID) where available; Singapore HPB per-serving values for dishes Malaysia hasn't measured. Serving sizes differ between dishes — that's the point. Two caveats: Malaysian and Singapore recipes differ (a lard-fried char kuey teow will exceed the 9.8 g shown), and the two Malaysian papers report per 100 g, so per-serving values combining them are approximate.</p>
+</section>
+
+<!-- ============ DISH TABLE ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Weekday lunch</span></div>
+  <h2>The office-lunch decision table</h2>
+  <p class="sub" style="margin-bottom:12px">Sorted best to worst. Filter by what's near your office.</p>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px" id="filters"></div>
+
+  <div class="scroll"><table id="dishes">
+    <thead><tr>
+      <th>Dish</th><th>Where</th>
+      <th style="text-align:right">Sat fat</th>
+      <th style="text-align:right">Sodium</th>
+      <th>Verdict</th><th style="min-width:220px">How to order it</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table></div>
+
+  <p class="src">Sat fat/sodium per typical serving. <b>M</b> = Malaysian lab-measured (Foods 2022 sodium, 210 street foods across 14 states; Foods 2023 fatty acids). <b>SG</b> = Singapore HPB measured, same dish different recipe. <b>D</b> = derived by combining the two Malaysian papers. Blank = genuinely not measured anywhere — nasi kandar, nasi campur, wantan mee, prawn mee and roti telur have no published figures, so I've given ordering rules instead of numbers.</p>
+</section>
+
+<!-- ============ DRINKS ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Weekday lunch</span></div>
+  <h2>Drinks — the highest-yield change you can make today</h2>
+
+  <div class="scroll"><table>
+    <thead><tr><th>Drink</th><th style="text-align:right">Sugar / 250 ml</th><th style="text-align:right">kcal</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td class="dish">Air kosong / Chinese tea</td><td class="num">0 g</td><td class="num">0</td><td><span class="b ok">● Default</span></td></tr>
+      <tr><td class="dish">Kopi-O / Teh-O <b>kosong</b></td><td class="num">0 g</td><td class="num">~0</td><td><span class="b ok">● Default</span> <span class="note">coffee is independently associated with lower gout risk (OR 0.47)</span></td></tr>
+      <tr><td class="dish">Air kelapa (coconut water)</td><td class="num">14 g</td><td class="num">55</td><td><span class="b ok">● Good</span> <span class="note">high potassium; MOH-verified 55 kcal</span></td></tr>
+      <tr><td class="dish">Teh-O (standard sweetness)</td><td class="num">~10 g</td><td class="num">48</td><td><span class="b care">◐ Occasional</span></td></tr>
+      <tr><td class="dish">Kopi-O (standard)</td><td class="num">~12 g</td><td class="num">78</td><td><span class="b care">◐ Occasional</span></td></tr>
+      <tr><td class="dish">Teh-C</td><td class="num">~18 g</td><td class="num">125</td><td><span class="b limit">◐ Limit</span></td></tr>
+      <tr><td class="dish">Kopi (condensed milk)</td><td class="num">~19 g</td><td class="num">193</td><td><span class="b limit">◐ Limit</span></td></tr>
+      <tr><td class="dish">Milo ais</td><td class="num">~22 g</td><td class="num">180</td><td><span class="b no">✕ Cut</span></td></tr>
+      <tr><td class="dish">Teh tarik</td><td class="num">~23 g</td><td class="num">150</td><td><span class="b no">✕ Cut</span> <span class="note">~6 tsp sugar</span></td></tr>
+      <tr><td class="dish">Air tebu (sugarcane)</td><td class="num">—</td><td class="num">184</td><td><span class="b no">✕ Cut</span></td></tr>
+      <tr><td class="dish">Cendol (200 ml)</td><td class="num">high</td><td class="num">278</td><td><span class="b no">✕ Cut</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout win">
+    <b>The one-sentence version:</b> "kosong" removes the whole 5–6 teaspoons; "kurang manis" removes only the spooned sugar, and most of the sweetness in a teh tarik is already dissolved in the sweetened condensed milk. If two drinks a day become kosong, you remove roughly <b>40 g sugar and 300 kcal daily</b> without touching a single meal.
+  </div>
+
+  <p class="src">Beverage sugar values: Singapore HPB measured per 100 ml (kopitiam preparation is essentially identical); teaspoon figures are HPB's official guidance. Malaysia's own MyFCD holds a mamak-specific entry (R225024) but its detail endpoint was unreachable — so treat the Malaysian teh tarik figure as very close, not exact. Air kelapa cross-checks exactly against MOH's Bank Kalori (250 ml = 55 kcal).</p>
+</section>
+
+<!-- ============ HOME COOKING ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Weeknights at home</span></div>
+  <h2>The plate, and the swaps that matter</h2>
+
+  <div class="grid2">
+    <div>
+      <h3>The plate formula</h3>
+      <ul>
+        <li><b>Half the plate:</b> vegetables — at least one dark leafy (bayam, kangkung, sawi, kailan) cooked <em>masak air</em> or stir-fried in a spoon of soybean/canola oil, not <em>masak lemak</em>.</li>
+        <li><b>A quarter:</b> protein — steamed or grilled fish, skinless chicken, tofu, tempeh, eggs, dhal. Rotate; don't make it fish every night (see the purine note).</li>
+        <li><b>A quarter:</b> carbohydrate — and make it <b>basmati, not jasmine</b>.</li>
+        <li><b>Eat in that order</b>, vegetables and protein first, rice last, with a ~10-minute gap if you can manage it.</li>
+      </ul>
+
+      <div class="callout">
+        <b>The single biggest rice swap:</b> measured GI of <b>jasmine rice is 91; basmati is 59</b> — a 32-point drop, tested in 75 Chinese, Malay and Indian men in one study. That's the largest, best-evidenced glycaemic lever available to a Malaysian rice eater, and it needs no change in how you cook or eat. Brown rice pools around 65. Buy <em>Basmathi King</em> or <em>Moghul</em> (Jaya Grocer), or <em>Jasmine SunBrown</em> beras perang.
+      </div>
+    </div>
+
+    <div>
+      <h3>Cooking swaps, ranked</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Instead of</th><th>Use</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Palm / coconut cooking oil</td><td><b>Soybean, canola, sunflower, corn, olive, peanut</b></td><td class="note">SFA→PUFA swap ≈ −0.36 mmol/L LDL</td></tr>
+          <tr><td>Jasmine rice</td><td><b>Basmati</b> (or brown)</td><td class="note">GI 91 → 59</td></tr>
+          <tr><td>Full santan in curry</td><td><b>Half santan + evaporated low-fat milk</b>, or thin santan</td><td class="note">coconut is the worst fat tested for LDL</td></tr>
+          <tr><td>Kicap cair / light soy</td><td><b>Less of it + more lime, chilli, ginger, lemongrass, tamarind</b></td><td class="note">light soy is 5,710 mg sodium/100 g</td></tr>
+          <tr><td>Ikan bilis in sambal</td><td><b>Fresh chilli sambal, no bilis</b></td><td class="note">dried anchovy is the highest-purine food in a 270-food survey: 1,109 mg/100 g. A realistic 10 g portion is ~110 mg — so it's the habit, not one spoonful</td></tr>
+          <tr><td>Stock cubes / instant noodle sachets</td><td><b>Home stock, or half the sachet</b></td><td class="note">stock cubes &gt;1,000 mg Na/100 g</td></tr>
+          <tr><td>White bread breakfast</td><td><b>Oats</b> (≥3 g β-glucan)</td><td class="note">−0.25 mmol/L LDL</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <hr class="hr">
+
+  <h3>What you do <em>not</em> need to restrict — and this surprises people</h3>
+  <div class="grid2">
+    <div>
+      <p style="margin-top:4px"><b>Tofu, tempeh, dhal, lentils, chickpeas, fresh mushrooms, bayam, kangkung, asparagus, kacang.</b> Despite containing purines, plant sources show no association with gout in any cohort tested — Choi's 47,150-man study found purine-rich vegetables at <b>RR 0.96 (ns)</b> while meat was 1.41 and seafood 1.51. A meta-analysis found them <em>inversely</em> associated (OR 0.86). Soy is protective in Singapore Chinese data (HR 0.86). Feeding trials with tofu moved urate by 0.02 mg/dL.</p>
+      <p><b>Eggs:</b> zero purine, and the LDL effect is real but small (~0.05–0.12 mmol/L per 100 mg cholesterol). Moderate to 3–4/week as a precaution given LDL 5.2, but they're not your problem.</p>
+      <p><b>Milk and yoghurt:</b> actively helpful. Total dairy RR 0.56 for gout; low-fat dairy 0.58. Milk is uricosuric — a crossover trial showed ~10% urate reduction over 3 hours. Low-fat, for the saturated fat.</p>
+      <p><b>Coffee:</b> keep it. Just kosong.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Don't bother with these</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Thing</th><th>Why not</th></tr></thead>
+        <tbody>
+          <tr><td class="dish">Vitamin C supplements</td><td class="note">Evidence downgraded. The 2020 ACR guideline conditionally recommends <em>against</em> them; the RCT in actual gout patients was titled "Clinically Insignificant Effect." Note you're currently taking Vitamin C — worth asking your doctor whether to continue, though it's harmless.</td></tr>
+          <tr><td class="dish">Cinnamon</td><td class="note">Umbrella meta-analysis of 11 meta-analyses: HbA1c −0.10%. Smaller than assay noise.</td></tr>
+          <tr><td class="dish">Cherry / tart cherry supplements</td><td class="note">Weak case-crossover evidence for preventing <em>flares</em> — which you don't have. A 2026 randomised crossover found no acute effect on uric acid at all.</td></tr>
+          <tr><td class="dish">Red yeast rice</td><td class="note"><b>Actively risky for you.</b> Monacolin K is chemically identical to lovastatin. Taking it alongside your prescribed statin is dose-stacking the same drug with an unknown dose, plus citrinin contamination risk.</td></tr>
+          <tr><td class="dish">More running</td><td class="note">Exercise trials show ~6% LDL reduction — but almost all randomise <em>sedentary</em> people. There's no evidence more volume lowers LDL further in someone already at 4–5×/week, and your HDL 2.2 / TG 1.3 say exercise has already delivered what it can. More running may also push urate <em>up</em>.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DAILY STACK ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Daily</span></div>
+  <h2>The LDL stack — three things, every day</h2>
+  <p class="sub">On top of Crestor + Ezetrol. <b>Revised 14 Aug:</b> plant sterol milk is <em>out</em> — see below.</p>
+
+  <div class="callout warn" style="margin-top:14px">
+    <b>Drop the plant sterol milk. Your ezetimibe already does that job.</b> Ezetimibe blocks NPC1L1, the intestinal sterol transporter — it's literally the drug used to treat sitosterolemia, and it cuts serum plant sterol levels by ~50%. Plant sterols in food work one step upstream, by crowding cholesterol out of micelles, so there's <em>some</em> mechanistic room for both. But the human evidence is three small trials and they disagree: the only <b>blinded</b> one (Jakulj 2005, n=40) found adding 2 g of plant sterols to ezetimibe bought <b>−3.5% LDL, p=0.13 — not significant</b>. The two positive trials were unblinded or uncontrolled-feeding, n=21 and n=41. Realistic incremental benefit: somewhere between 0 and 7%, on a base your drugs will already have cut roughly in half.
+    <br><br><b>And the products are sweetened milk powders.</b> Adding a daily sweetened drink to chase maybe 0.06–0.1 mmol/L, when your HbA1c is 5.8%, is a bad trade. If you want the last few percent of LDL, that's a rosuvastatin dose conversation with your cardiologist — not a tin of milk powder.
+  </div>
+
+  <div class="scroll"><table style="margin-top:12px">
+    <thead><tr><th>What</th><th>Dose</th><th style="text-align:right">LDL effect</th><th>In Malaysia</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="dish">Viscous fibre</td><td>≥3 g β-glucan ≈ 1 cup dry oats; or psyllium</td>
+        <td class="num"><b>−0.25 mmol/L</b></td>
+        <td class="note">Rolled oats anywhere. Also: dhal, kacang, bendi (okra), barley. Total fibre target 20–30 g/day.</td>
+      </tr>
+      <tr>
+        <td class="dish">Nuts</td><td>28–42 g (a small handful), unsalted</td>
+        <td class="num"><b>−0.12 mmol/L</b></td>
+        <td class="note">Kacang tanah (peanuts), almonds, cashews, walnuts. Unsalted and unsweetened — the salted versions undo the sodium work.</td>
+      </tr>
+      <tr>
+        <td class="dish">Soy protein</td><td>~25 g/day</td>
+        <td class="num"><b>−3.2%</b></td>
+        <td class="note">Tauhu, taukwa, tempeh, unsweetened soy milk, edamame. Also lowers gout risk (HR 0.86) — a rare two-for-one.</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout win">
+    <b>Pomelo and grapefruit: no restriction.</b> Rosuvastatin is barely metabolised at all — only ~10% is recovered as metabolite, principally via CYP2C9, and the FDA label states outright that its clearance <em>"is not dependent on metabolism by cytochrome P450 3A4 to a clinically significant extent."</em> The grapefruit problem is furanocoumarin inhibition of CYP3A4, which is why it hits simvastatin, lovastatin and atorvastatin but not rosuvastatin, pravastatin or fluvastatin. Limau bali is fine. <b>One forward-looking caveat:</b> if a calcium channel blocker is ever added for your blood pressure — amlodipine, felodipine, nifedipine — those <em>are</em> CYP3A4 substrates and the grapefruit rule comes back. Re-ask then.
+  </div>
+</section>
+
+<!-- ============ SAMPLE WEEK ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Putting it together</span></div>
+  <h2>A realistic week</h2>
+  <p class="sub" style="margin-bottom:14px">Built to your actual pattern: lunch out on weekdays, home cooking on weeknights, out or tapau on weekends.</p>
+
+  <div class="days">
+    <div class="day"><h4>MON</h4>
+      <div class="m"><b>Breakfast</b> Oats + soy milk + banana + handful of nuts</div>
+      <div class="m"><b>Lunch out</b> Chicken rice, skin off, chilli on side, plain rice. Air kosong.</div>
+      <div class="m"><b>Dinner</b> Steamed fish + kangkung + basmati</div>
+      <div class="m"><b>Walk</b> 10 min after lunch and dinner</div>
+    </div>
+    <div class="day"><h4>TUE</h4>
+      <div class="m"><b>Breakfast</b> Wholemeal toast + peanut butter + low-fat milk</div>
+      <div class="m"><b>Lunch out</b> Economy rice: half rice, steamed fish, two veg <em>masak air</em>, <b>no gravy on the rice</b></div>
+      <div class="m"><b>Dinner</b> Tempeh + tofu stir-fry, bayam, basmati</div>
+    </div>
+    <div class="day"><h4>WED</h4>
+      <div class="m"><b>Breakfast</b> Oats + yoghurt</div>
+      <div class="m"><b>Lunch out</b> Mamak: 2 idli or thosai kosong, sambar and chutney on the side. Kopi-O kosong.</div>
+      <div class="m"><b>Dinner</b> Dhal curry (thin santan), okra, chapati</div>
+    </div>
+    <div class="day"><h4>THU</h4>
+      <div class="m"><b>Breakfast</b> Eggs + wholemeal toast + fruit</div>
+      <div class="m"><b>Lunch out</b> Soup noodles — <b>kuah asing, don't drink the broth</b>. Extra veg.</div>
+      <div class="m"><b>Dinner</b> Grilled chicken (no skin), sweet potato leaves, basmati</div>
+    </div>
+    <div class="day"><h4>FRI</h4>
+      <div class="m"><b>Breakfast</b> Oats + nuts + papaya</div>
+      <div class="m"><b>Lunch out</b> Nasi lemak <b>biasa</b> (not ayam goreng) — sat fat 7.6 g vs 17.6 g. Skip the bilis. Half the rice.</div>
+      <div class="m"><b>Dinner</b> Fish + mixed veg + basmati</div>
+    </div>
+    <div class="day"><h4>SAT</h4>
+      <div class="m"><b>Long run day</b> — eat normally, hydrate hard, add salt back around the run</div>
+      <div class="m"><b>Out/tapau</b> Your flexible meal. Pick one indulgence, not three. If it's curry laksa or roti john, that's your entire day's saturated fat in one dish — know that going in and keep the rest of the day lean.</div>
+      <div class="m"><b>Rest of day</b> Keep drinks kosong</div>
+    </div>
+    <div class="day"><h4>SUN</h4>
+      <div class="m"><b>Breakfast</b> Half-boiled eggs, wholemeal toast, kopi-O kosong <span class="note">(skip the kaya + butter — that's the sugar and saturated fat, not the eggs)</span></div>
+      <div class="m"><b>Lunch/dinner out</b> Steamed fish, tofu, greens, plain rice — the Chinese restaurant default is genuinely fine</div>
+      <div class="m"><b>Prep</b> Cook a batch of dhal or beans for the week</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <b>Sodium and your long runs conflict — handle it deliberately.</b> The DASH low-sodium arm (1,150 mg/day) was tested in sedentary people in a temperate climate. You sweat heavily in Malaysian heat, and aggressive sodium restriction plus high-volume hot-weather training carries a real hyponatraemia risk. Target ~2,000 mg/day on rest and short-session days — for a Malaysian male that's already a ~1,500 mg cut and captures most of the BP benefit — and deliberately replace sodium around long runs and races. <b>Do not chase 1,150 mg/day.</b> This reconciliation is physiological reasoning, not a trial-tested protocol; raise it with your cardiologist.
+  </div>
+</section>
+
+<!-- ============ SHOPPING ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Groceries</span></div>
+  <h2>Shopping list</h2>
+  <div class="grid2">
+    <div>
+      <h3>Staples to swap in</h3>
+      <div class="chk"><i></i><div>Basmati rice — <b>Basmathi King</b> 5 kg (~RM33) or <b>Moghul</b> (Jaya Grocer)</div></div>
+      <div class="chk"><i></i><div>Brown rice — <b>Jasmine SunBrown</b> beras perang</div></div>
+      <div class="chk"><i></i><div>Rolled oats (not instant sachets — those carry added sugar)</div></div>
+      <div class="chk"><i></i><div>Wholemeal atta flour for chapati (HEXA Food)</div></div>
+      <div class="chk"><i></i><div>Soybean / canola / sunflower / corn / olive oil — replace the palm oil bottle</div></div>
+      <div class="chk"><i></i><div>Low-fat milk and plain yoghurt</div></div>
+      <div class="chk"><i></i><div>Unsweetened soy milk</div></div>
+      <div class="chk"><i></i><div>Unsalted nuts — peanuts, almonds, cashews, walnuts</div></div>
+      <div class="chk"><i></i><div>Psyllium husk (optional — if you use it, take it 2–4 h apart from your Ezetrol as a precaution; no data, but ezetimibe is known to be blocked by bile acid binders)</div></div>
+      <div class="chk"><i></i><div><s>Plant sterol milk</s> — <b>removed.</b> Your ezetimibe already blocks that pathway, and these products are sweetened.</div></div>
+    </div>
+    <div>
+      <h3>Fresh, every week</h3>
+      <div class="chk"><i></i><div>Dark greens: bayam, kangkung, sawi, kailan, pucuk paku</div></div>
+      <div class="chk"><i></i><div>Bendi (okra), kacang botol, kacang panjang, terung</div></div>
+      <div class="chk"><i></i><div>Sweet potato + sweet potato leaves, labu (pumpkin), tomatoes</div></div>
+      <div class="chk"><i></i><div>Tauhu, taukwa, tempeh</div></div>
+      <div class="chk"><i></i><div>Dhal / lentils, chickpeas, kidney beans</div></div>
+      <div class="chk"><i></i><div>Fish (not dried, not salted) and skinless chicken</div></div>
+      <div class="chk"><i></i><div>Eggs</div></div>
+      <div class="chk"><i></i><div>Pisang berangan, papaya, guava, watermelon</div></div>
+      <div class="chk"><i></i><div>Aromatics to replace salt: lime, chilli, ginger, lemongrass, tamarind, garlic</div></div>
+
+      <h3>Reduce or retire</h3>
+      <div class="chk"><i></i><div>Kicap cair / light soy sauce · budu · cencalok · belacan-heavy pastes</div></div>
+      <div class="chk"><i></i><div>Instant noodles (4.3 g salt/100 g) and stock cubes</div></div>
+      <div class="chk"><i></i><div>Ikan bilis, ikan masin, dried shiitake (379 mg purine/100 g — fresh is 21)</div></div>
+      <div class="chk"><i></i><div>Condensed and sweetened creamer</div></div>
+      <div class="chk"><i></i><div>Coconut oil, palm cooking oil, ghee</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HEADACHES ============ -->
+<section class="card" style="border-color:var(--critical);border-width:1.5px">
+  <div class="sec-head"><span class="n" style="color:var(--critical)">Raise this at your appointment</span></div>
+  <h2>Your post-run headaches</h2>
+  <p class="sub" style="margin-top:6px">You mentioned these are much better with hydration, but still appear after hard 25–30 km sessions. Most likely this is benign. One possibility needs ruling out, and one action item is urgent regardless.</p>
+
+  <div class="callout warn">
+    <b>Do not take a triptan or an ergotamine — ever — unless a cardiologist clears it.</b> This is the single most actionable thing on this page. Sumatriptan (Imigran) and ergotamine (Cafergot) are both readily available in Malaysia and a busy GP hearing "I get migraines after running" may reasonably reach for one. They are <b>vasoconstrictors, and the FDA label lists ischaemic coronary artery disease as an absolute contraindication.</b> A documented case: a 50-year-old received one subcutaneous sumatriptan dose and developed 10/10 chest pain with inferior ST elevation <em>within minutes</em> — on angiography she had only a 30% non-flow-limiting lesion. Mild plaque is enough.
+    <br><br>This contraindication attaches to <b>your coronary calcification, not to your headache diagnosis</b> — it applies whether or not the headaches turn out to be cardiac. Put it on your phone's medical ID and say it out loud to any doctor or pharmacist who offers you something for a "migraine."
+  </div>
+
+  <h3>The thing to ask about: cardiac cephalalgia</h3>
+  <p>It's a headache caused by myocardial ischaemia — angina that refers to the head instead of the chest. It's in ICHD-3 as code 10.6. Two facts make it worth naming out loud in your case:</p>
+  <ul>
+    <li>In consecutive clinical series, roughly <b>1 in 4 cases present with headache and no chest pain at all.</b></li>
+    <li><b>Every patient in the largest series (n=30) had at least one cardiovascular risk factor.</b> You have four. It's the one feature that's essentially universal.</li>
+  </ul>
+
+  <div class="callout">
+    <b>Being straight about the odds:</b> this is probably <em>not</em> what you have. Cardiac cephalalgia is rare, the median patient is around 64 years old, 87% are over 50, and your headaches have recurred over a long period rather than appearing as one acute event. Primary exercise headache — a benign entity affecting ~12% of the population and common in runners — is far more likely. <b>But the asymmetry matters.</b> If it's benign and you investigate: minor cost, a reassuring answer. If it's cardiac and you don't — or you get handed a triptan — that's a different category of outcome. You have a CT coronary angiogram booked in a month. This costs you one sentence at that appointment.
+  </div>
+
+  <h3>Why your case doesn't qualify for simple reassurance</h3>
+  <p>Pascual's group lists specific red flags in exertional headache. You trip several:</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Red flag</th><th>You</th></tr></thead>
+    <tbody>
+      <tr><td>Age over 40 at onset</td><td><span class="b limit">◐ 40</span></td></tr>
+      <tr><td>Known vascular disease</td><td><span class="b no">✕ CAC 91, documented RCA plaque</span></td></tr>
+      <tr><td>Multiple cardiovascular risk factors</td><td><span class="b no">✕ LDL 5.2, BP 127/95, prediabetes</span></td></tr>
+      <tr><td>Exertion-dependent with a dose-response</td><td><span class="b limit">◐ worse after 25–30 km, i.e. worse with higher cardiac demand</span></td></tr>
+      <tr><td>Relieved by rest</td><td><span class="b care">◐ consistent with both benign and cardiac causes</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 style="color:var(--critical)">Your dehydration theory is the weakest-evidenced explanation on the table</h3>
+  <p>Not wrong — but not established either, and worth knowing that. Dehydration headache has <b>no dedicated ICHD-3 code</b> (it falls into the 10.7 catch-all). The intervention literature amounts to three small unblinded trials — you cannot blind someone to how much water they drink — and IV fluids for acute headache in the emergency department have <b>not</b> been shown to improve pain outcomes. "More water helped" is an uncontrolled n-of-1 observation that coincided with other changes in your training. It's a reasonable hypothesis; it shouldn't be a settled conclusion.</p>
+
+  <div class="callout warn">
+    <b>There's an opposite problem that looks identical: exercise-associated hyponatraemia.</b> Too <em>much</em> plain water, not too little. Headache is its cardinal symptom. In the Boston Marathon study (n=488), <b>13% of finishers had sodium ≤135 mmol/L</b>; the dominant risk factors were <b>weight gain during the race (OR 4.2)</b> and <b>duration over 4 hours (OR 7.4)</b>. It has killed at least 14 athletes since 1981. Critically: <b>the treatments are opposite.</b> Drinking more for what is actually hyponatraemia makes it worse, and giving isotonic fluid to a symptomatic EAH patient can be fatal.
+    <br><br>Your 25–30 km sessions are probably under 4 hours, which puts you below the strongest risk threshold, and you're male and experienced — both lower-risk. So this is <em>possible but not likely</em>. It becomes worth taking seriously if you're deliberately front-loading large volumes of plain water.
+  </div>
+
+  <h3>Three cheap things that would settle most of this</h3>
+  <div class="rule"><div class="rn" style="background:var(--good)">1</div><div>
+    <div class="rt">Weigh yourself immediately before and after every long run</div>
+    <div class="rd">Free, takes 20 seconds, and it separates dehydration from hyponatraemia instantly. <b>Weight loss &gt;2% = dehydration. Weight gain or no loss = you're overdrinking</b>, and the answer is less water, not more. Anyone running 25–30 km and theorising about hydration should be doing this.</div>
+  </div></div>
+  <div class="rule"><div class="rn" style="background:var(--good)">2</div><div>
+    <div class="rt">Get an ECG during or immediately after a headache</div>
+    <div class="rd">The cheapest high-yield test available, and the one most likely to be skipped. A resting ECG in a quiet clinic three weeks later tells you nothing. If you get a bad one, that's the moment to go in.</div>
+  </div></div>
+  <div class="rule"><div class="rn" style="background:var(--good)">3</div><div>
+    <div class="rt">Ask for a symptom-limited stress test that reproduces the headache</div>
+    <div class="rd">The formal diagnostic standard for cardiac cephalalgia is capturing the headache and the ECG or perfusion change <em>at the same moment</em>. Tell them the goal is to reproduce the symptom, not just to hit a target heart rate.</div>
+  </div></div>
+
+  <h3>What to actually say at the appointment</h3>
+  <div class="callout">
+    "I get severe headaches brought on by hard running, especially after 25–30 km. They ease with rest. I have no chest pain. I've been calling them migraines and assuming dehydration. <b>I want you to consider whether this could be an anginal equivalent — cardiac cephalalgia — given my calcium score of 91 in the RCA.</b>"
+  </div>
+  <p class="note">The 2021 AHA/ACC Chest Pain Guideline deliberately moved away from "typical vs atypical" language toward classifying symptoms as cardiac, possibly cardiac, or noncardiac — precisely so that presentations other than chest pain get entered into the framework rather than filtered out. Naming it gets it assessed.</p>
+
+  <h3 style="color:var(--critical)">Go to A&E (999) if any of these happen</h3>
+  <div class="grid2">
+    <div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div><b>Thunderclap</b> onset — maximal intensity within seconds</div></div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div>Headache <b>with</b> chest pain, pressure, jaw/arm/shoulder pain, breathlessness or cold sweat</div></div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div>Headache with fainting, near-fainting or palpitations</div></div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div>Any weakness, numbness, speech or visual disturbance, confusion</div></div>
+    </div>
+    <div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div>Vomiting, confusion or seizure after a long run — this is the hyponatraemia picture and needs a <b>sodium level, not more fluid</b></div></div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div>Worse than any previous episode, or not settling with rest</div></div>
+      <div class="chk"><i style="border-color:var(--critical)"></i><div><b>A headache now triggered by <em>less</em> exertion than before.</b> A falling threshold is the classic pattern of progressive ischaemia — call cardiology, don't wait for the scheduled appointment.</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Should you stop running? No.</b> The ACC's guidance for athletes with elevated calcium scores is graded progression and symptom vigilance, not restriction — fitness is powerfully protective. The reasonable middle path until the CT angiogram: keep training, but <b>defer the maximal 25–30 km sessions that reliably reproduce the headache</b>, and never train through an episode. Not stopping. Not pushing into the symptom.
+  </div>
+</section>
+
+<!-- ============ MEDS ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Your medications</span></div>
+  <h2>Crestor + Ezetrol — what this combination means</h2>
+  <p class="sub" style="margin-top:6px">Your cardiologist has made two good calls that are specifically right for <em>you</em>, and it's worth knowing why.</p>
+
+  <div class="grid2" style="margin-top:14px">
+    <div>
+      <h3 style="margin-top:0">Where your LDL should land</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Regimen</th><th style="text-align:right">Projected LDL</th></tr></thead>
+        <tbody>
+          <tr><td>Baseline</td><td class="num"><b>5.2</b> mmol/L</td></tr>
+          <tr><td>Rosuva 10 + eze 10</td><td class="num">~2.0–2.2</td></tr>
+          <tr><td>Rosuva 20 + eze 10</td><td class="num">~1.8–2.0</td></tr>
+          <tr><td>Rosuva 40 + eze 10</td><td class="num">~1.5–1.8</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note" style="margin-top:8px">Your lab printed the Malaysian CPG 2023 targets: high CV risk <b>&lt;1.9</b>, very high <b>&lt;1.5</b>. &lt;1.9 looks very achievable on this combination. &lt;1.5 is borderline and might need a dose increase. Get a repeat lipid panel at 6–12 weeks — that's the number that tells you where you stand, not any dietary change.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Why ezetimibe instead of just more statin</h3>
+      <p>This is the part worth appreciating. In a head-to-head, <b>rosuvastatin 10 + ezetimibe beat rosuvastatin 20 alone</b> — bigger LDL drop (−20.5% vs −13.5%), bigger apoB drop, <em>and fewer adverse events</em> (28.2% vs 40.5%), with no difference in fasting glucose, HbA1c or HOMA-IR.</p>
+      <p>That matters because statins do modestly raise diabetes risk and you're already prediabetic — and <b>ezetimibe is diabetes-neutral</b> (IMPROVE-IT substudy: HR 1.03, ns). Adding ezetimibe rather than escalating the statin gets you to target with less statin exposure. For a prediabetic endurance runner, that's exactly the right architecture.</p>
+      <p class="note">Rosuvastatin is also the athlete-preferred statin — it's hydrophilic and penetrates skeletal muscle less than atorvastatin, simvastatin or lovastatin, which carry the highest myopathy risk.</p>
+    </div>
+  </div>
+
+  <hr class="hr">
+
+  <div class="grid2">
+    <div>
+      <div class="callout warn">
+        <b>The CK monitoring trap — flag this before anyone tests you.</b> Male athletes have a normal creatine kinase range of <b>82–1,083 U/L</b> — up to six times the range for inactive people. Post-marathon CK routinely runs into the thousands for days. A CK drawn in the days after a long run is <b>uninterpretable</b> for statin myopathy and will generate a false alarm that could get you taken off a drug you need.
+        <br><br><b>What to do:</b> get a baseline CK during a rest period. Don't test when asymptomatic. When you do test, avoid strenuous exercise for 3–7 days first and <b>tell the lab and the doctor you're an endurance runner.</b>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Practical notes</h3>
+      <ul>
+        <li><b>Food:</b> neither drug cares. Rosuvastatin's AUC is unaffected by food; ezetimibe's label says with or without. Take them together, whenever you'll remember.</li>
+        <li><b>Timing:</b> no evening-dose requirement — rosuvastatin's half-life is ~19 h. Morning is fine.</li>
+        <li><b>Asian dosing:</b> the FDA label advises starting rosuvastatin at 5 mg in Asian patients — East Asian subjects show 64–84% higher AUC. You may get more effect per mg, and more myopathy risk per mg. Worth knowing if a dose change is discussed.</li>
+        <li><b>Diabetes monitoring:</b> HbA1c at baseline, ~3 months, then 6-monthly. Expect a possible ~0.1% rise from the statin — anticipated, not a reason to stop. If you did cross into diabetes, the answer is to treat the diabetes, not stop the statin.</li>
+        <li><b>Muscle red flags:</b> dark/cola urine, severe generalised muscle pain, weakness out of proportion to your training. Those warrant same-day review.</li>
+        <li><b>Don't stop the statin over the headaches.</b> You had them before starting. A 2025 <em>Lancet</em> meta-analysis of 19 trials and 123,924 people checked 66 labelled side effects and confirmed only four — headache was not among them.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOLLOW UP ============ -->
+<section class="card">
+  <div class="sec-head"><span class="n">Loose ends</span></div>
+  <h2>Things to raise before or at the CT angiogram</h2>
+
+  <div class="scroll"><table>
+    <thead><tr><th style="width:30%">Item</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td class="dish">Post-run headaches — could this be an anginal equivalent?</td><td><b>Say this out loud.</b> See the headache section above. Also ask for a stress test that reproduces the headache with ECG monitoring at that moment.</td></tr>
+      <tr><td class="dish">Confirm triptans/ergots are contraindicated</td><td>Get it written in your record and on your phone's medical ID. This applies because of the coronary calcification, regardless of what the headaches turn out to be.</td></tr>
+      <tr><td class="dish">Baseline CK, drawn on a rest day</td><td>Before you're ever tested reactively. Athlete CK ranges run up to 1,083 U/L — six times the inactive range. Get the baseline on record so nobody panics later.</td></tr>
+      <tr><td class="dish">Lipoprotein(a), once</td><td>Never measured, changes lifetime risk assessment, and only needs doing once in your life. Ask while you're already having blood taken.</td></tr>
+      <tr><td class="dish">Familial hypercholesterolaemia — should I be tested?</td><td>LDL 5.2 with HDL 2.2 and TG 1.3, in a lean non-drinking marathon runner at 40, is not a lifestyle lipid picture. It changes screening for your family, and the answer to "will diet fix this." Worth asking directly.</td></tr>
+      <tr><td class="dish">Blood pressure 127/95</td><td>Diastolic 95 meets the Malaysian CPG definition of hypertension (≥90). It wasn't in the screening report's recommendations. Bring 1–2 weeks of home readings.</td></tr>
+      <tr><td class="dish">Hepatitis B vaccination</td><td>HBsAb &lt;10 mIU/mL — you're not immune. The report recommended vaccination; easy to forget among the cardiac news.</td></tr>
+      <tr><td class="dish">Gallbladder polyps, largest 0.5 cm</td><td>Found on the abdominal ultrasound. Small, but they need a defined surveillance interval. Ask when the repeat scan should be.</td></tr>
+      <tr><td class="dish">Repeat uric acid, rested</td><td>See the training-artefact note at the top. Get it drawn after 3–5 easy days, not post-long-run.</td></tr>
+      <tr><td class="dish">OGTT or 2 weeks of CGM</td><td>HbA1c can misread in endurance runners in <em>either</em> direction. Foot-strike haemolysis shortens red cell lifespan, which would make 5.8% read falsely <em>low</em>. A 75 g OGTT or CGM gives an independent read — and CGM would double as the data source for your food app.</td></tr>
+      <tr><td class="dish">Vitamin C, zinc, iron supplements</td><td>You're taking all three. Vitamin C for uric acid is no longer supported. Iron without a documented deficiency is worth questioning — your Hb 14.6 and full blood count are normal.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer style="margin-top:26px;padding-top:18px;border-top:1px solid var(--grid);font-size:12.5px;color:var(--muted)">
+  <p><b>Sources.</b> Malaysian food data: <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9739403/">Street Food in Malaysia: Sodium Levels (Foods 2022;11:3791)</a> · <a href="https://www.mdpi.com/2304-8158/12/6/1234">Fatty Acid Composition of Malaysian Street Foods (Foods 2023;12:1234)</a> · <a href="https://myfcd.moh.gov.my/">MyFCD, MOH Malaysia</a> · <a href="https://hq.moh.gov.my/nutrition/wp-content/uploads/2025/10/Bank-Calorie-Bahagian-Pemakanan-merged.pdf">MOH Bank Kalori 2025</a> · <a href="https://focos.hpb.gov.sg/eservices/ENCF/">Singapore HPB nutrient database</a>.
+  Sodium/potassium intake: <a href="https://link.springer.com/article/10.1186/s41043-021-00229-y">MyCoSS 24-h urine survey</a> · <a href="https://www.bmj.com/content/346/bmj.f1325">He, Li &amp; MacGregor BMJ 2013</a> · <a href="https://www.ncbi.nlm.nih.gov/books/NBK132084/">Aburto BMJ 2013</a>.
+  Lipids: <a href="https://www.sciencedirect.com/science/article/pii/S003306201830094X">Chiavaroli Portfolio meta-analysis 2018</a> · <a href="https://www.nature.com/articles/srep31337">Han, sterols on statins 2016</a> · <a href="https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.119.043052">Neelakantan coconut oil, Circulation 2020</a> · <a href="https://ajcn.nutrition.org/article/S0002-9165(23)05757-X/fulltext">Mensink &amp; Zock 2003</a> · <a href="https://www.cmaj.ca/content/185/4/309">Bailey, grapefruit interactions CMAJ 2013</a>.
+  Glucose/BP: <a href="https://pubmed.ncbi.nlm.nih.gov/11832527/">DPP, NEJM 2002</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/37593846/">ReTUNE 2023</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/9099655/">DASH, NEJM 1997</a> · <a href="https://www.cambridge.org/core/journals/british-journal-of-nutrition/article/glycaemic-and-insulin-responses-glycaemic-index-and-insulinaemic-index-values-of-rice-between-three-asian-ethnic-groups/A97C03E5E18463A673D31D071625D6A8">Tan, rice GI in Asians BJN 2015</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/30101510/">Shukla, food order in prediabetes 2019</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/27747394/">Reynolds, post-meal walking 2016</a>.
+  Urate: <a href="https://acrjournals.onlinelibrary.wiley.com/doi/10.1002/acr.24180">2020 ACR Gout Guideline</a> · <a href="https://www.nejm.org/doi/full/10.1056/NEJMoa035700">Choi, NEJM 2004</a> · <a href="https://www.jstage.jst.go.jp/article/bpb/37/5/37_b13-00967/_article">Kaneko purine content 2014</a> · <a href="https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2021.775398/full">Activity and urate, NHANES</a> · <a href="https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(22)01657-9/fulltext">ALL-HEART, Lancet 2022</a>.</p>
+  <p style="margin-top:10px">This is a summary of published evidence organised around your test results — not medical advice, and not a substitute for your cardiologist. Where evidence is weak or contested I've said so rather than smoothing it over. Prepared 14 August 2026.</p>
+</footer>
+
+</div>
+
+<script>
+const DISHES = [
+  {d:"Idli", w:"Mamak", sf:0.9, na:306, per:"per 100 g", v:"ok", vt:"Best mamak carb", how:"Two with sambar. Chutney on the side.", src:"SG"},
+  {d:"Chicken rice", w:"Kopitiam", sf:3.0, na:746, v:"ok", vt:"Best rice dish", how:"Skin off. Ask for plain rice not the oily rice. Chilli on the side.", src:"M/D"},
+  {d:"Thosai kosong", w:"Mamak", sf:1.5, na:321, per:"per 100 g", v:"ok", vt:"Good", how:"Kosong, not masala. Dhal and chutney separate so you control the amount.", src:"SG"},
+  {d:"Putu mayam", w:"Mamak", sf:1.0, na:290, per:"per 100 g", v:"ok", vt:"Good", how:"Skip the gula melaka.", src:"SG"},
+  {d:"Bihun sup / bihun soto", w:"Kopitiam", sf:2.0, na:1537, v:"ok", vt:"Good — if you leave the broth", how:"290 kcal. Kuah asing. Do not drink the soup — that's where the sodium is.", src:"M/SG"},
+  {d:"Chicken soup w/ herbs", w:"Food court", sf:1.8, na:520, v:"ok", vt:"Good", how:"145 kcal. Genuinely one of the best options anywhere.", src:"SG"},
+  {d:"Chapati + dhal", w:"Mamak", sf:3.1, na:155, v:"ok", vt:"Best flatbread", how:"GI 45 vs thosai 76 and idli 85. Watch portion — MOH's 100 g chapati is 300 kcal.", src:"SG"},
+  {d:"Roti canai (plain, 1 pc)", w:"Mamak", sf:3.0, na:220, v:"care", vt:"Better than its reputation", how:"One piece is fine. The problem is two pieces + dhal + teh tarik. Lowest sodium of any dish measured.", src:"M/D"},
+  {d:"Duck/chicken rice, skin off", w:"Food court", sf:3.6, na:326, v:"ok", vt:"Good", how:"Removing the skin: 673→530 kcal, 5.9→3.6 g sat fat.", src:"SG"},
+  {d:"Bihun goreng", w:"Kopitiam", sf:2.8, na:797, v:"care", vt:"Acceptable", how:"Ask for extra vegetables, less oil.", src:"M/D"},
+  {d:"Nasi goreng", w:"Kopitiam", sf:4.2, na:750, v:"care", vt:"Acceptable", how:"Sodium is lower than most soup noodles. Add a side of vegetables.", src:"M/D"},
+  {d:"Economy rice / nasi campur", w:"Food court", sf:null, na:null, v:"care", vt:"Depends entirely on you", how:"Nasi separuh. One steamed/grilled protein — not ayam goreng, not rendang. Two veg masak air. NO gravy over the rice. Skip sambal bilis.", src:"—"},
+  {d:"Nasi lemak (plain)", w:"Kopitiam", sf:7.6, na:643, v:"care", vt:"Occasional", how:"Plain, not ayam goreng — 7.6 g vs 17.6 g sat fat. Half the rice, skip the ikan bilis (highest-purine food there is).", src:"M/SG"},
+  {d:"Ban mian / pan mee", w:"Food court", sf:8.4, na:2196, v:"limit", vt:"Sodium problem", how:"475 kcal. Broth carries 110% of your daily sodium. Don't drink it.", src:"SG"},
+  {d:"Wantan mee", w:"Kopitiam", sf:null, na:null, v:"care", vt:"No measured data", how:"No published Malaysian figures. Order dry (kon lo) with soup separate, extra veg, less char siew.", src:"—"},
+  {d:"Nasi kandar", w:"Mamak", sf:null, na:null, v:"limit", vt:"No measured data", how:"No published figures. The gravy 'banjir' is the whole problem — ask for kuah asing or none. One curry, not four.", src:"—"},
+  {d:"Hokkien mee (fried)", w:"Kopitiam", sf:7.3, na:1423, v:"limit", vt:"Limit", how:"522 kcal.", src:"SG"},
+  {d:"Lor mee", w:"Food court", sf:4.9, na:2538, v:"limit", vt:"Sodium: 127% of daily", how:"The gravy is the sodium. Ask for less.", src:"SG"},
+  {d:"Mee rebus", w:"Food court", sf:5.8, na:2164, v:"limit", vt:"Sodium: 108% of daily", how:"", src:"SG"},
+  {d:"Kuey teow soup", w:"Kopitiam", sf:null, na:2076, v:"limit", vt:"Sodium: 104% of daily", how:"Noodles are fine; the broth is 104% of your day's sodium. Leave it.", src:"M"},
+  {d:"Asam laksa (Penang)", w:"Food court", sf:null, na:1967, v:"limit", vt:"Sodium: 98% of daily", how:"No santan, so better than curry laksa on fat — but 98% of your day's sodium in one bowl. Don't finish the broth.", src:"M"},
+  {d:"Murtabak", w:"Mamak", sf:15.3, na:826, v:"no", vt:"Avoid", how:"", src:"M/D"},
+  {d:"Mee goreng mamak", w:"Mamak", sf:5.9, na:2186, v:"no", vt:"Highest sodium per 100 g of any main", how:"109% of daily sodium.", src:"M/D"},
+  {d:"Curry laksa / laksa lemak", w:"Food court", sf:17.8, na:1588, v:"no", vt:"Avoid — santan", how:"591 kcal. Saturated fat alone is your whole day.", src:"SG"},
+  {d:"Roti john", w:"Mamak", sf:18.1, na:2011, v:"no", vt:"Avoid", how:"721 kcal, 18 g sat fat, 100% of daily sodium.", src:"SG"},
+  {d:"Nasi lemak ayam goreng", w:"Kopitiam", sf:17.6, na:1432, v:"no", vt:"Avoid", how:"Sat fat more than doubles vs plain nasi lemak.", src:"M/D"},
+  {d:"Soto", w:"Food court", sf:null, na:3169, v:"no", vt:"Worst sodium measured: 158%", how:"One bowl is more than 1.5× your entire daily sodium limit.", src:"M"},
+  {d:"Char kuey teow", w:"Kopitiam", sf:9.8, na:1478, v:"no", vt:"Fat + sodium", how:"Malaysian measurement. Versions cooked in pork lard run considerably higher — Singapore's figure is far worse. Treat as a once-in-a-while dish.", src:"M/D"},
+  {d:"Cakoi (yau char kwai)", w:"Kopitiam", sf:32.8, na:508, v:"no", vt:"Highest sat fat of 39 foods tested", how:"24.3 g sat fat per 100 g.", src:"M/D"},
+  {d:"Bak kut teh", w:"Kopitiam", sf:null, na:null, v:"limit", vt:"Purine load", how:"325 kcal. Pork ribs in concentrated long-boiled broth is a classic purine load. Occasional, and skip the broth.", src:"M"},
+];
+
+const VMAP = {ok:["ok","●"], care:["care","◐"], limit:["limit","◐"], no:["no","✕"]};
+const ORDER = {ok:0, care:1, limit:2, no:3};
+
+function renderDishes(filter){
+  const tb = document.querySelector("#dishes tbody");
+  tb.innerHTML = "";
+  const rows = DISHES.filter(x => !filter || filter==="All" || x.w===filter)
+    .sort((a,b)=> (ORDER[a.v]-ORDER[b.v]) || ((a.sf??99)-(b.sf??99)));
+  const maxSF = 20, maxNA = 3200;
+  for(const x of rows){
+    const tr = document.createElement("tr");
+    const [cls,ic] = VMAP[x.v];
+    const sfCell = x.sf==null ? '<span class="note">no data</span>' :
+      `<div class="mb"><span class="track"><i class="${x.sf>17?'hi':x.sf<5?'lo':''}" style="width:${Math.min(100,x.sf/maxSF*100)}%"></i></span><span class="v">${x.sf.toFixed(1)} g</span></div>`;
+    const naCell = x.na==null ? '<span class="note">no data</span>' :
+      `<div class="mb"><span class="track"><i class="${x.na>2000?'hi':x.na<800?'lo':''}" style="width:${Math.min(100,x.na/maxNA*100)}%"></i></span><span class="v">${x.na}</span></div>`;
+    tr.innerHTML = `<td class="dish">${x.d}${x.per?` <span class="tag">${x.per}</span>`:""}<span class="tag">${x.src}</span></td>
+      <td class="note">${x.w}</td>
+      <td class="num">${sfCell}</td>
+      <td class="num">${naCell}</td>
+      <td><span class="b ${cls}">${ic} ${x.vt}</span></td>
+      <td class="note">${x.how||"—"}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+const venues = ["All", ...new Set(DISHES.map(x=>x.w).filter(w=>w!=="—"))];
+const fdiv = document.getElementById("filters");
+venues.forEach((v,i)=>{
+  const b = document.createElement("button");
+  b.textContent = v;
+  b.style.cssText = "font:inherit;font-size:13px;padding:5px 13px;border-radius:20px;cursor:pointer;border:1px solid var(--ring);background:var(--surface-1);color:var(--ink-2)";
+  b.onclick = ()=>{
+    [...fdiv.children].forEach(c=>{c.style.background="var(--surface-1)";c.style.color="var(--ink-2)";c.style.fontWeight="400"});
+    b.style.background="var(--s1)"; b.style.color="#fff"; b.style.fontWeight="650";
+    renderDishes(v);
+  };
+  fdiv.appendChild(b);
+  if(i===0){b.style.background="var(--s1)";b.style.color="#fff";b.style.fontWeight="650"}
+});
+renderDishes("All");
+
+// Offline support — registers only when served over http(s), skipped on file://
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// ---- sat fat chart ----
+const CHART = [
+  ["Roti john", 18.1],
+  ["Curry laksa (santan)", 17.8],
+  ["Nasi lemak ayam goreng", 17.6],
+  ["Murtabak", 15.3],
+  ["Char / fried kuey teow", 9.8],
+  ["Ban mian / pan mee", 8.4],
+  ["Nasi lemak (plain)", 7.6],
+  ["Hokkien mee", 7.3],
+  ["Mee goreng mamak", 5.9],
+  ["Nasi goreng", 4.2],
+  ["Duck rice, skin off", 3.6],
+  ["Chapati + dhal", 3.1],
+  ["Chicken rice, skin off", 3.01],
+  ["Roti canai (1 pc)", 3.02],
+  ["Thosai kosong", 1.5],
+  ["Idli", 0.9],
+];
+const MAXV = 20, LIMIT = 17;
+const c = document.getElementById("satchart");
+CHART.forEach(([lab,v])=>{
+  const row = document.createElement("div");
+  row.className = "crow";
+  const cls = v>LIMIT ? "over" : (v>=7 ? "mid" : "under");
+  row.innerHTML = `<div class="cl" title="${lab}">${lab}</div>
+    <div class="ctrack" style="position:relative">
+      <div class="cbar ${cls}" style="width:${v/MAXV*100}%"></div>
+      <div class="climit" style="left:${LIMIT/MAXV*100}%"></div>
+    </div>
+    <div class="cval">${v} g</div>`;
+  c.appendChild(row);
+});
+</script>
+</body>
+</html>
