@@ -159,6 +159,10 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
   background:var(--blue);color:#fff;border-radius:15px;padding:16px 17px;margin-bottom:12px;
   box-shadow:0 2px 10px rgba(42,120,214,.28)}
 .shoot:active{transform:scale(.985)}
+.shoot.setup{background:var(--surface);color:var(--ink);border:1.5px dashed var(--blue);box-shadow:none}
+.shoot.setup .cico{color:var(--blue)}
+.shoot.setup small{opacity:1;color:var(--ink2)}
+#gear{font-size:16px}
 .shoot .cico{font-size:26px;line-height:1;flex:none}
 .shoot b{display:block;font-size:15.5px;font-weight:650}
 .shoot small{display:block;font-size:12px;opacity:.9;margin-top:2px;line-height:1.35}
@@ -183,6 +187,9 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .flash .fs{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
 .flash .fa{display:flex;gap:8px;margin-top:10px}
 .flash .fa button{flex:1;padding:8px;border-radius:9px;background:var(--raised);border:1px solid var(--ring);font-size:13px;font-weight:600}
+.fr{display:flex;gap:11px;align-items:flex-start}
+.fimg{width:58px;height:58px;border-radius:10px;object-fit:cover;flex:none;border:1px solid var(--ring);cursor:pointer}
+.fimg.dim{opacity:.4;filter:grayscale(1)}
 .conf{font-size:11px;font-weight:650;padding:2px 7px;border-radius:11px;background:var(--grid);color:var(--ink2);margin-left:6px}
 </style>
 </head>
@@ -190,11 +197,12 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 
 <header>
   <div class="hd">
-    <h1 id="title">Today</h1>
+    <h1 id="title">Today</h1><span id="bld" class="tiny" style="margin-left:-4px;align-self:flex-end;padding-bottom:3px"></span>
     <div class="datenav">
       <button id="prev" aria-label="Previous day">‹</button>
       <span class="dlab" id="dlab">—</span>
       <button id="next" aria-label="Next day">›</button>
+      <button id="gear" aria-label="Settings" title="Settings" style="margin-left:2px">⚙</button>
     </div>
   </div>
 </header>
@@ -345,6 +353,8 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
+const BUILD='12';
+const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 let S = load();
 let cur = todayKey();
@@ -366,8 +376,37 @@ function load(){
   b.weights = [{id:'seedw', date:'2026-08-05', kg:80.6, ctx:'normal', km:0}];
   return b;
 }
-function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS}, apiKey:'', recent:[]}; }
-function save(){ try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){ alert('Could not save — storage may be full.'); } }
+function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS},
+  apiKey:'', recent:[], ghToken:'', gistId:'', gistUrl:'', lastBackup:0, lastPhotoBackup:0, backupErr:''}; }
+function save(quiet){
+  const ok=saveLocal();
+  if(!quiet && S.ghToken) scheduleBackup();
+  return ok;
+}
+function saveLocal(){
+  try{ localStorage.setItem(LS, JSON.stringify(S)); return true; }
+  catch(e){
+    // Out of space. Shed the oldest photos — the numbers matter, the pictures don't.
+    const withPhotos=S.logs.filter(l=>l.photo).sort((a,b)=>a.ts-b.ts);
+    let dropped=0;
+    for(const l of withPhotos){
+      delete l.photo; dropped++;
+      try{ localStorage.setItem(LS, JSON.stringify(S));
+        alert(`Storage was full, so ${dropped} old photo${dropped===1?'':'s'} ${dropped===1?'was':'were'} removed. All your numbers are intact.`);
+        return true; }catch(e2){}
+    }
+    alert('Storage is full and could not be freed. Export your data from Settings, then clear photos.');
+    return false;
+  }
+}
+function storageKB(){ try{ return Math.round((localStorage.getItem(LS)||'').length/1024); }catch(e){ return 0; } }
+function photoCount(){ return S.logs.filter(l=>l.photo).length; }
+function clearPhotos(){
+  const n=photoCount();
+  if(!n){ alert('No photos stored.'); return; }
+  if(!confirm(`Remove ${n} stored photo${n===1?'':'s'}? All food data stays.`)) return;
+  S.logs.forEach(l=>{ delete l.photo; }); save(); render();
+}
 
 function todayKey(d){ const x = d||new Date(); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
 function shiftKey(k,n){ const [y,m,d]=k.split('-').map(Number); const dt=new Date(y,m-1,d+n); return todayKey(dt); }
@@ -399,7 +438,8 @@ function render(){
   document.querySelectorAll('.nv button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
   const titles={today:'Food log',add:'Log food',trends:'Trends',health:'Health'};
   document.getElementById('title').textContent = titles[tab];
-  document.querySelector('.datenav').style.display = (tab==='today'||tab==='add')?'flex':'none';
+  const dn=(tab==='today'||tab==='add');
+  ['prev','dlab','next'].forEach(id=>{const e=document.getElementById(id); if(e) e.style.display=dn?'':'none';});
   ({today:renderToday, add:renderAdd, trends:renderTrends, health:renderHealth})[tab]();
   window.scrollTo(0,0);
 }
@@ -422,12 +462,17 @@ function renderToday(){
   const t = totals(cur), tg = S.targets, ls = logsFor(cur);
   let h = '';
 
-  // camera is the primary action
+  // camera is the primary action — and routes to setup if it can't work yet
   if(cur===todayKey()){
-    h += `<button class="shoot" onclick="document.getElementById('cam').click()">
-        <span class="cico">◉</span><span><b>Take a photo of your meal</b>
-        <small>${S.apiKey? 'AI logs it automatically — it only asks if unsure' : 'Add your API key in Health → Settings to enable this'}</small></span></button>
-      <input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
+    h += S.apiKey
+      ? `<button class="shoot" onclick="document.getElementById('cam').click()">
+          <span class="cico">◉</span><span><b>Take a photo of your meal</b>
+          <small>Logged automatically — it only asks if it's unsure</small></span></button>`
+      : `<button class="shoot setup" onclick="openKey()">
+          <span class="cico">⚙</span><span><b>Set up the camera — 2 minutes</b>
+          <small>Add an API key once and photos log themselves. Tap here.</small></span></button>
+         <button class="btn ghost full" style="margin-bottom:12px" onclick="document.getElementById('cam').click()">Take a photo anyway (you fill in the numbers)</button>`;
+    h += `<input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
       <div id="flash"></div>`;
   }
 
@@ -467,7 +512,7 @@ function renderToday(){
       h += items.sort((a,b)=>a.ts-b.ts).map(l=>`
         <div class="entry">
           <span class="t">${new Date(l.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
-          ${l.photo?`<img class="thumb" src="${l.photo}" alt="">`:''}
+          ${l.photo?`<img class="thumb" src="${l.photo}" alt="" onclick="viewPhoto('${l.id}')" style="cursor:pointer">`:''}
           <span class="e-nm">${l.name}${(l.qty||1)!==1?` <span class="tiny">×${l.qty}</span>`:''}
             ${l.auto?'<span class="pill ok" style="margin-left:5px">AI</span>':''}
             <small>${Math.round(l.kcal*(l.qty||1))} kcal · <b>${fmt(l.sat*(l.qty||1))}g sat</b> · ${Math.round(l.na*(l.qty||1))}mg Na</small></span>
@@ -577,7 +622,12 @@ function renderTrends(){
 }
 
 function renderHealth(){
-  let h = `<div class="card"><div class="row sp"><h2 style="margin:0">Gout flares</h2>
+  let h = '';
+  if(!S.ghToken && S.logs.length>4) h += `<div class="hint bad"><b>Nothing is backed up.</b> ${S.logs.length} meals and ${S.flares.length} flares exist only in this browser.
+    <br><button class="btn" style="margin-top:9px;padding:9px 15px;font-size:13.5px" onclick="openGit()">Back up to GitHub</button></div>`;
+  if(!S.apiKey) h += `<div class="hint bad"><b>The camera isn't set up yet.</b> Photos will save but you'll have to type the numbers in yourself.
+    <br><button class="btn" style="margin-top:9px;padding:9px 15px;font-size:13.5px" onclick="openKey()">Set it up — 2 minutes</button></div>`;
+  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Gout flares</h2>
       <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openFlare()">+ Log flare</button></div>
     <p class="tiny" style="margin:8px 0 0">Flare frequency decides whether your treatment recommendation is conditional or strong. This is the highest-value data you can collect.</p>`;
   if(!S.flares.length) h+=`<div class="empty">No flares logged.<br><span class="tiny">Known: 19 Mar 2026, 11 Aug 2026</span></div>`;
@@ -621,17 +671,41 @@ function renderHealth(){
         <button class="del" onclick="delRec('headaches','${x.id}')">×</button></div>`).join('');
   h += `</div>`;
 
-  h += `<div class="card"><h2>Settings</h2>
-    <div class="fld"><label>Anthropic API key — this is what makes the camera work</label>
-      <input type="password" id="ak" value="${S.apiKey||''}" placeholder="sk-ant-…" onchange="S.apiKey=this.value.trim();save()">
+  h += `<div class="card" id="settings"><h2>Settings</h2>
+    <div class="fld"><label>Camera / Anthropic API key</label>
+      <div class="row" style="gap:8px"><span class="pill ${S.apiKey?'ok':'bad'}">${S.apiKey?'Connected':'Not set'}</span>
+        <button class="btn ghost" style="padding:8px 14px;font-size:13px;margin-left:auto" onclick="openKey()">${S.apiKey?'Change':'Set up'}</button></div>
       <p class="tiny" style="margin:6px 0 0"><b>To get one:</b> go to <b>console.anthropic.com</b> → sign in → <b>Settings → API keys</b> → <b>Create Key</b> → copy it and paste above. You'll need a few dollars of credit under Billing. Roughly 1–3 sen per photo.<br><br>Stored only in this browser on this device. It is sent to Anthropic and nowhere else — this page has no server.</p></div>
     <h3>Daily targets</h3>
     ${METRICS.map(m=>`<div class="fld"><label>${m.n} (${m.u||'kcal'})</label>
       <input type="number" value="${S.targets[m.k]}" onchange="S.targets['${m.k}']=+this.value||${DEFAULT_TARGETS[m.k]};save();"></div>`).join('')}
     <hr>
+    <h3>Backup</h3>
+    <div class="swaprow"><span>GitHub</span>
+      <span class="sv" style="margin-left:auto"><span class="pill ${S.ghToken?'ok':'bad'}">${S.ghToken?'Connected':'Not connected'}</span></span></div>
+    ${S.ghToken?`
+      <div class="swaprow"><span>Numbers backed up</span><span class="sv" style="color:var(--ink2)">${agoTxt(S.lastBackup)}</span></div>
+      <div class="swaprow"><span>Photos backed up</span><span class="sv" style="color:var(--ink2)">${agoTxt(S.lastPhotoBackup)}</span></div>
+      ${S.backupErr?`<div class="hint bad" style="font-size:12.5px;margin-top:10px"><b>Last backup failed.</b> ${S.backupErr}</div>`:''}
+      <div class="row" style="gap:8px;margin-top:12px">
+        <button class="btn ghost" style="flex:1;padding:10px;font-size:13.5px" onclick="pushBackup(true,true)">${backupBusy?'Backing up…':'Back up now'}</button>
+        <button class="btn ghost" style="flex:1;padding:10px;font-size:13.5px" onclick="restoreBackup()">Restore</button>
+      </div>
+      ${S.gistUrl?`<a class="btn ghost full" style="margin-top:8px;text-decoration:none" href="${S.gistUrl}" target="_blank" rel="noopener">View the backup on GitHub</a>`:''}
+      <button class="btn ghost full" style="margin-top:8px" onclick="disconnectGit()">Disconnect</button>
+      <p class="tiny" style="margin:9px 0 0">Numbers back up a few seconds after any change. Photos go up when you close the app, and whenever you tap Back up now.</p>
+    `:`<button class="btn full" style="margin-top:10px" onclick="openGit()">Connect GitHub — 2 minutes</button>
+       <p class="tiny" style="margin:9px 0 0">Without this, everything lives only in this browser. Clearing site data or losing the phone loses the lot.</p>`}
+    <hr>
+    <h3>Storage</h3>
+    <div class="swaprow"><span>Photos kept</span><span class="sv" style="color:var(--ink2)">${photoCount()}</span></div>
+    <div class="swaprow"><span>Space used</span><span class="sv" style="color:var(--ink2)">${storageKB()} KB of ~5,000</span></div>
+    <p class="tiny" style="margin:8px 0 10px">Photos are stored as small thumbnails in this browser, only when a meal is actually logged. Failed or non-food shots are discarded immediately. If space runs out the oldest photos are dropped automatically — your numbers are never lost.</p>
+    <button class="btn ghost full" style="margin-bottom:10px" onclick="clearPhotos()">Delete stored photos</button>
     <button class="btn ghost full" onclick="exportData()">Export all data (JSON)</button>
     <p class="tiny" style="margin:8px 0 0">Your data lives only in this browser. Export before clearing site data or switching phones.</p>
     <a class="btn ghost full" href="index.html" style="margin-top:10px;text-decoration:none">Open the eating plan</a>
+    <p class="tiny" style="margin:14px 0 0;text-align:center">Build ${BUILD} · ${BUILD_DATE}</p>
   </div>`;
   view.innerHTML = h;
 }
@@ -650,7 +724,7 @@ function foodBefore(date){
    ============================================================ */
 const sheet=document.getElementById('sheet'), sbg=document.getElementById('sbg');
 function openSheet(html){ sheet.innerHTML=`<div class="grab"></div>`+html; sheet.classList.add('on'); sbg.classList.add('on'); }
-function closeSheet(){ sheet.classList.remove('on'); sbg.classList.remove('on'); }
+function closeSheet(){ sheet.classList.remove('on'); sbg.classList.remove('on'); pendingPhoto=null; }
 sbg.onclick=closeSheet;
 
 let pendingQty=1, pendingDish=null, pendingPhoto=null;
@@ -713,6 +787,27 @@ function commitCustom(){
 function delLog(id){ S.logs=S.logs.filter(l=>l.id!==id); save(); render(); }
 function delRec(k,id){ S[k]=S[k].filter(r=>r.id!==id); save(); render(); }
 
+function openKey(){
+  openSheet(`<h2>Turn on the camera</h2>
+    <p class="muted" style="margin:-4px 0 14px">One key, pasted once. After this, photographing a meal logs it.</p>
+    <div class="hint" style="font-size:13px">
+      <b>1.</b> Open <b>console.anthropic.com</b> and sign in<br>
+      <b>2.</b> Left sidebar → <b>API keys</b> → <b>Create Key</b><br>
+      <b>3.</b> Copy it (you only get to see it once)<br>
+      <b>4.</b> Paste it below<br>
+      <b>5.</b> Under <b>Billing</b>, add a few dollars of credit
+    </div>
+    <div class="fld" style="margin-top:14px"><label>Paste your key</label>
+      <input type="password" id="k_v" value="${S.apiKey||''}" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>
+    <p class="tiny" style="margin:-4px 0 14px">Stays in this browser on this device. This page has no server — the key goes to Anthropic and nowhere else. Photos cost roughly 1–3 sen each.</p>
+    <button class="btn full" onclick="saveKey()">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Later</button>`);
+}
+function saveKey(){
+  const v=document.getElementById('k_v').value.trim();
+  if(v && !v.startsWith('sk-')){ if(!confirm("That doesn't look like an Anthropic key (they start with sk-). Save it anyway?")) return; }
+  S.apiKey=v; save(); closeSheet(); render();
+}
 function openFlare(){
   openSheet(`<h2>Log a gout flare</h2>
     <div class="fld"><label>Date</label><input type="date" id="f_d" value="${todayKey()}" max="${todayKey()}"></div>
@@ -775,17 +870,38 @@ function onPhoto(input){
   const r=new FileReader();
   r.onload=async e=>{
     const full=e.target.result;
-    pendingPhoto=await shrink(full,150);
+    pendingPhoto=await shrink(full,128);
     input.value='';
     if(!S.apiKey){
-      openCustom({name:'', note:'Photo saved. To have this filled in automatically, add an Anthropic API key in <b>Health → Settings</b>.'});
+      pendingPhoto=null;
+      showFlash(`<div class="flash warn">
+        <div class="fh">The camera isn't connected yet</div>
+        <div class="fs">Add an Anthropic API key and photos will fill themselves in. Takes about two minutes.</div>
+        <div class="fa"><button onclick="openKey()">Set it up</button>
+          <button onclick="openCustom({note:'Enter it by hand.'})">Type this one in</button></div></div>`);
       return;
     }
-    showFlash(`<div class="flash ok"><div class="fh"><span class="spin"></span> Reading the photo…</div>
-      <div class="fs">Identifying the dish, estimating the portion, and working out where it lands against your budgets.</div></div>`);
+    showFlash(`<div class="flash ok"><div class="fr">
+      <img class="fimg" src="${pendingPhoto}" alt="Your photo">
+      <div style="flex:1;min-width:0"><div class="fh"><span class="spin"></span> Reading the photo…</div>
+      <div class="fs">Identifying the dish and estimating the portion.</div></div></div></div>`);
     try{
       const big=await shrink(full,900);
       const out=await identify(big);
+
+      if(out.notFood){
+        const shown=pendingPhoto;
+        pendingPhoto=null;                    // discarded — never written to storage
+        showFlash(`<div class="flash warn">
+          <div class="fr"><img class="fimg dim" src="${shown}" alt="Discarded photo"><div style="flex:1;min-width:0">
+          <div class="fh">No food in that photo</div>
+          <div class="fs">${out.saw? 'It saw: '+out.saw+'.' : ''} Nothing logged, and this photo was <b>not</b> saved.</div>
+          </div></div>
+          <div class="fa"><button onclick="document.getElementById('cam').click()">Try again</button>
+            <button onclick="openCustom({note:'Enter it by hand.'})">Type it in</button></div></div>`);
+        return;
+      }
+
       const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(Date.now());
 
       // Confident → log it and get out of the way. Unsure → ask.
@@ -795,24 +911,49 @@ function onPhoto(input){
         S.logs.push(entry); pendingPhoto=null; save(); render();
         const tg=S.targets, satPct=Math.round(out.sat/tg.sat*100), naPct=Math.round(out.na/tg.na*100);
         showFlash(`<div class="flash ${satPct>50||naPct>60?'warn':'ok'}">
+          <div class="fr">${entry.photo?`<img class="fimg" src="${entry.photo}" alt="Stored photo" onclick="viewPhoto('${entry.id}')">`:''}
+          <div style="flex:1;min-width:0">
           <div class="fh">Logged — ${out.name} <span class="tiny" style="font-weight:400">(${meal})</span></div>
           <div class="fs"><b>${fmt(out.sat)}g sat fat</b> (${satPct}% of today) · ${Math.round(out.na)}mg sodium (${naPct}%) · ${Math.round(out.kcal)} kcal</div>
           ${out.note?`<div class="fs" style="margin-top:6px">${out.note}</div>`:''}
+          </div></div>
+          <div class="fs" style="margin-top:8px;color:var(--muted)">Photo kept as a ${entry.photo?Math.round(entry.photo.length/1400):0} KB thumbnail. Tap it to view.</div>
           <div class="fa"><button onclick="editLog('${entry.id}')">Not right — edit</button>
-            <button onclick="delLog('${entry.id}')">Undo</button></div></div>`);
+            <button onclick="delLog('${entry.id}')">Undo</button>
+            <button onclick="dropPhoto('${entry.id}')">Drop photo</button></div></div>`);
       } else {
         showFlash('');
         openCustom({...out, meal,
           note:`<b>Not fully sure about this one.</b> ${out.why||'Check the numbers before saving.'}`});
       }
     }catch(err){
-      showFlash('');
-      openCustom({note:`Couldn't reach the AI — ${String(err.message||err).slice(0,110)}. Fill it in manually; the photo is kept.`});
+      pendingPhoto=null;                      // nothing legit to keep
+      const needsKey = err.kind==='key' || err.kind==='billing';
+      showFlash(`<div class="flash warn">
+        <div class="fh">${err.title||'Something went wrong'}</div>
+        <div class="fs">${err.fix||String(err.message||err).slice(0,160)}</div>
+        <div class="fa">
+          ${needsKey?`<button onclick="openKey()">Open settings</button>`:''}
+          <button onclick="document.getElementById('cam').click()">Try another photo</button>
+          <button onclick="pendingPhoto=null;openCustom({note:'Enter it by hand.'})">Type it in</button>
+        </div></div>`);
     }
   };
   r.readAsDataURL(f);
 }
 
+function viewPhoto(id){
+  const l=S.logs.find(x=>x.id===id); if(!l||!l.photo) return;
+  openSheet(`<h2>${l.name}</h2><p class="muted" style="margin:-4px 0 12px">${prettyDate(l.date)} · ${l.meal||''}</p>
+    <img src="${l.photo}" style="width:100%;border-radius:12px;border:1px solid var(--ring)" alt="">
+    <p class="tiny" style="margin:10px 0 14px">Stored at thumbnail size (~${Math.round(l.photo.length/1400)} KB) in this browser only. It is never uploaded anywhere.</p>
+    <button class="btn ghost full" onclick="dropPhoto('${id}');closeSheet()">Delete this photo, keep the entry</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Close</button>`);
+}
+function dropPhoto(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  delete l.photo; save(); render();
+}
 function editLog(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
   pendingPhoto=l.photo||null;
@@ -852,24 +993,198 @@ The local time is ${new Date().toLocaleTimeString()} — so the meal is probably
 
 Set confidence to "high" ONLY if you can clearly identify the dish AND judge the portion. Use "low" if the photo is unclear, the dish is ambiguous, several dishes share the frame, or the portion is hard to judge — being wrong is worse than asking.
 
-Reply with ONLY a JSON object, no other text:
+**If the photo contains no identifiable food or drink** — it's a person, a wall, a screen, a blur, anything else — do NOT guess and do NOT explain in prose. Reply with exactly this shape:
+{"notFood":true,"saw":"what is actually in the photo, 3-6 words"}
+
+Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
 {"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
     ]}]
   };
-  const r=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'content-type':'application/json','x-api-key':S.apiKey,
-      'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify(body)
-  });
-  if(!r.ok){ const t=await r.text(); throw new Error(r.status+' '+t.slice(0,120)); }
+  let r;
+  try{
+    r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'content-type':'application/json','x-api-key':S.apiKey,
+        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify(body)
+    });
+  }catch(e){ throw aiErr('offline','No connection','Your phone couldn\'t reach Anthropic. Check your signal or Wi-Fi and try again.'); }
+
+  if(!r.ok){
+    const t=await r.text().catch(()=>'');
+    if(r.status===401) throw aiErr('key','That API key was rejected','The key is missing, mistyped, or has been revoked. Open Settings and paste a fresh one.');
+    if(r.status===403) throw aiErr('key','Key not permitted','This key doesn\'t have access. Create a new one in the Anthropic console.');
+    if(r.status===429) throw aiErr('rate','Too many requests','Wait a minute and try again.');
+    if(r.status===400 && /credit|balance|billing/i.test(t))
+      throw aiErr('billing','Out of credit','Your Anthropic account has no balance left. Add credit under Billing at console.anthropic.com.');
+    if(r.status===404) throw aiErr('model','Model unavailable','The model this app asks for isn\'t available on your account.');
+    if(r.status>=500) throw aiErr('server','Anthropic is having trouble','Their end, not yours. Try again shortly.');
+    throw aiErr('other','Request failed ('+r.status+')', String(t).slice(0,140));
+  }
+
   const j=await r.json();
-  const txt=(j.content||[]).map(c=>c.text||'').join('');
-  const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('Unexpected reply');
-  const o=JSON.parse(m[0]);
+  const txt=(j.content||[]).map(c=>c.text||'').join('').trim();
+  const m=txt.match(/\{[\s\S]*\}/);
+  if(!m) throw aiErr('noparse','Couldn\'t read the reply', txt? ('It said: "'+txt.slice(0,150)+'"') : 'It returned nothing.');
+  let o; try{ o=JSON.parse(m[0]); }
+  catch(e){ throw aiErr('noparse','Couldn\'t read the reply','The reply wasn\'t valid JSON.'); }
+
+  if(o.notFood) return {notFood:true, saw:o.saw||''};
   return {name:o.name||'', kcal:Math.round(o.kcal||0), sat:+(o.sat||0), na:Math.round(o.na||0),
           sug:+(o.sug||0), pur:Math.round(o.pur||0), note:o.note||'',
           meal:o.meal||'', confidence:(o.confidence==='high'?'high':'low'), why:o.why||''};
+}
+function aiErr(kind,title,fix){ const e=new Error(title); e.kind=kind; e.title=title; e.fix=fix; return e; }
+
+/* ============================================================
+   BACKUP — one private GitHub gist. Numbers back up constantly
+   (they're tiny); photos are sharded under 1MB per file so the
+   gist API never truncates them on the way back down.
+   Secrets are deliberately NOT backed up.
+   ============================================================ */
+const GH='https://api.github.com';
+const SHARD_MAX=800000;
+let backupTimer=null, backupBusy=false;
+
+function ghHeaders(){ return {'Authorization':'Bearer '+S.ghToken,
+  'Accept':'application/vnd.github+json','Content-Type':'application/json'}; }
+
+async function ghErr(r){
+  let t=''; try{ t=(await r.json()).message||''; }catch(e){}
+  if(r.status===401) return 'Token rejected — check it has the "gist" scope and hasn\'t expired.';
+  if(r.status===403) return 'Forbidden — the token is missing the "gist" scope.';
+  if(r.status===404) return 'Backup not found. It may have been deleted — disconnect and reconnect.';
+  if(r.status===422) return 'GitHub refused the data ('+(t||'too large?')+').';
+  return 'GitHub error '+r.status+(t?' — '+t:'');
+}
+
+function splitState(){
+  const photos={};
+  const data={v:1, logs:[], flares:S.flares, weights:S.weights, headaches:S.headaches,
+              targets:S.targets, recent:S.recent, savedAt:Date.now()};
+  for(const l of S.logs){ const c={...l}; if(c.photo){ photos[c.id]=c.photo; delete c.photo; } data.logs.push(c); }
+  return {data, photos};                       // note: apiKey and ghToken never leave the phone
+}
+function shardPhotos(photos){
+  const shards=[]; let cur={}, size=0;
+  for(const k of Object.keys(photos)){
+    const v=photos[k];
+    if(size && size+v.length>SHARD_MAX){ shards.push(cur); cur={}; size=0; }
+    cur[k]=v; size+=v.length;
+  }
+  if(Object.keys(cur).length) shards.push(cur);
+  return shards;
+}
+
+async function ensureGist(){
+  if(S.gistId) return S.gistId;
+  const r=await fetch(GH+'/gists',{method:'POST',headers:ghHeaders(),body:JSON.stringify({
+    description:'Food log backup (private) — created by the eating-plan app',
+    public:false, files:{'foodlog-data.json':{content:'{}'}}
+  })});
+  if(!r.ok) throw new Error(await ghErr(r));
+  const j=await r.json();
+  S.gistId=j.id; S.gistUrl=j.html_url; saveLocal();
+  return j.id;
+}
+
+function scheduleBackup(){
+  clearTimeout(backupTimer);
+  backupTimer=setTimeout(()=>pushBackup(false), 4000);
+}
+
+async function pushBackup(withPhotos, manual){
+  if(!S.ghToken){ if(manual) alert('Connect GitHub first.'); return false; }
+  if(backupBusy) return false;
+  backupBusy=true; if(manual) render();
+  try{
+    const id=await ensureGist();
+    const {data,photos}=splitState();
+    const files={'foodlog-data.json':{content:JSON.stringify(data)}};
+
+    if(withPhotos){
+      const shards=shardPhotos(photos);
+      shards.forEach((s,i)=>{ files['foodlog-photos-'+String(i+1).padStart(2,'0')+'.json']={content:JSON.stringify(s)}; });
+      // remove shards that are no longer needed
+      for(let i=shards.length; i<(S.photoShards||0); i++)
+        files['foodlog-photos-'+String(i+1).padStart(2,'0')+'.json']=null;
+      S.photoShards=shards.length;
+    }
+    const r=await fetch(GH+'/gists/'+id,{method:'PATCH',headers:ghHeaders(),body:JSON.stringify({files})});
+    if(!r.ok) throw new Error(await ghErr(r));
+    S.lastBackup=Date.now(); if(withPhotos) S.lastPhotoBackup=Date.now();
+    S.backupErr=''; saveLocal();
+    if(manual) alert('Backed up.');
+    return true;
+  }catch(e){
+    S.backupErr=String(e.message||e).slice(0,160); saveLocal();
+    if(manual) alert('Backup failed — '+S.backupErr);
+    return false;
+  }finally{ backupBusy=false; if(tab==='health') render(); }
+}
+
+async function restoreBackup(){
+  if(!S.ghToken||!S.gistId){ alert('Nothing connected to restore from.'); return; }
+  if(!confirm('Replace everything on this phone with the last backup? Anything logged since then will be lost.')) return;
+  try{
+    const r=await fetch(GH+'/gists/'+S.gistId,{headers:ghHeaders()});
+    if(!r.ok) throw new Error(await ghErr(r));
+    const j=await r.json();
+    const df=j.files['foodlog-data.json'];
+    if(!df) throw new Error('That backup has no data file.');
+    const data=JSON.parse(df.content||'{}');
+    const photos={};
+    for(const name of Object.keys(j.files)){
+      if(!/^foodlog-photos-\d+\.json$/.test(name)) continue;
+      const f=j.files[name];
+      const txt = f.truncated && f.raw_url ? await (await fetch(f.raw_url)).text() : (f.content||'{}');
+      Object.assign(photos, JSON.parse(txt||'{}'));
+    }
+    const keepTok=S.ghToken, keepKey=S.apiKey, keepId=S.gistId, keepUrl=S.gistUrl;
+    S=Object.assign(blank(), {
+      logs:(data.logs||[]).map(l=> photos[l.id]? {...l, photo:photos[l.id]} : l),
+      flares:data.flares||[], weights:data.weights||[], headaches:data.headaches||[],
+      targets:Object.assign({...DEFAULT_TARGETS}, data.targets||{}), recent:data.recent||[],
+      ghToken:keepTok, apiKey:keepKey, gistId:keepId, gistUrl:keepUrl, lastBackup:Date.now()
+    });
+    saveLocal(); render();
+    alert(`Restored ${S.logs.length} meals, ${Object.keys(photos).length} photos, ${S.flares.length} flares.`);
+  }catch(e){ alert('Restore failed — '+String(e.message||e).slice(0,160)); }
+}
+
+function agoTxt(ts){
+  if(!ts) return 'never';
+  const s=Math.round((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  if(s<3600) return Math.round(s/60)+' min ago';
+  if(s<86400) return Math.round(s/3600)+' h ago';
+  return Math.round(s/86400)+' d ago';
+}
+
+function openGit(){
+  openSheet(`<h2>Back up to GitHub</h2>
+    <p class="muted" style="margin:-4px 0 14px">Your log goes into one <b>private</b> gist on your own account. Because gists are git repos, you also get version history — you can walk back to an earlier day if anything ever goes wrong.</p>
+    <div class="hint" style="font-size:13px">
+      <b>1.</b> Open <b>github.com/settings/tokens</b><br>
+      <b>2.</b> <b>Generate new token</b> → <b>classic</b><br>
+      <b>3.</b> Tick only the <b>gist</b> checkbox — nothing else<br>
+      <b>4.</b> Set expiry to <b>No expiration</b> (or you'll redo this)<br>
+      <b>5.</b> Generate, copy, paste below
+    </div>
+    <div class="fld" style="margin-top:14px"><label>Paste your GitHub token</label>
+      <input type="password" id="g_v" value="${S.ghToken||''}" placeholder="ghp_…" autocomplete="off" spellcheck="false"></div>
+    <p class="tiny" style="margin:-4px 0 14px">Stays on this phone. <b>Your API keys are never included in the backup</b> — only your food, flares, weights and headaches.</p>
+    <button class="btn full" onclick="saveGit()">Connect and back up now</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Later</button>`);
+}
+async function saveGit(){
+  const v=document.getElementById('g_v').value.trim();
+  S.ghToken=v; saveLocal(); closeSheet(); render();
+  if(v) await pushBackup(true, true);
+}
+function disconnectGit(){
+  if(!confirm('Disconnect GitHub? The existing backup stays on GitHub — this only stops future backups.')) return;
+  S.ghToken=''; S.gistId=''; S.gistUrl=''; S.lastBackup=0; S.lastPhotoBackup=0; S.backupErr=''; saveLocal(); render();
 }
 
 function exportData(){
@@ -883,10 +1198,21 @@ function exportData(){
    WIRING
    ============================================================ */
 function go(t){ closeSheet(); tab=t; render(); }
+document.getElementById('bld').textContent='v'+BUILD;
 document.querySelectorAll('.nv button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+document.getElementById('gear').onclick=()=>{ tab='health'; render(); setTimeout(()=>{
+  const s=document.getElementById('settings'); if(s) s.scrollIntoView({behavior:'smooth',block:'start'});
+},60); };
 document.getElementById('prev').onclick=()=>{ cur=shiftKey(cur,-1); render(); };
 document.getElementById('next').onclick=()=>{ if(cur<todayKey()){ cur=shiftKey(cur,1); render(); } };
 render();
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden' && S.ghToken){
+    if(Date.now()-(S.lastPhotoBackup||0) > 6*3600*1000) pushBackup(true);
+    else pushBackup(false);
+  }
+});
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));

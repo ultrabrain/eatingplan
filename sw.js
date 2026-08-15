@@ -1,5 +1,5 @@
 // Offline cache — so the plan opens at a hawker stall with no signal.
-const CACHE = 'eating-plan-v8';
+const CACHE = 'eating-plan-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,14 @@ self.addEventListener('activate', e => {
 // Network-first so edits show up, cache fallback so it works offline.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+
+  // Never touch cross-origin requests. API calls (api.anthropic.com,
+  // api.github.com) must fail honestly rather than be answered from cache —
+  // otherwise a restore gets served index.html and JSON.parse chokes on it.
+  let url;
+  try { url = new URL(e.request.url); } catch (err) { return; }
+  if (url.origin !== self.location.origin) return;
+
   e.respondWith(
     fetch(e.request)
       .then(res => {
