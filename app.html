@@ -358,7 +358,7 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='14';
+const BUILD='15';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -408,7 +408,7 @@ function load(){
 }
 function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS},
   apiKey:'', recent:[], ghToken:'', gistId:'', gistUrl:'', lastBackup:0, lastPhotoBackup:0, backupErr:'',
-  photoKB:100, backupPhotoDays:0}; }
+  photoKB:100, backupPhotoDays:0, provider:'anthropic', model:'', ilmuKey:'', spendUsd:0, shots:0}; }
 function save(quiet){
   const ok=saveLocal();
   if(!quiet && S.ghToken) scheduleBackup();
@@ -495,7 +495,7 @@ function renderToday(){
 
   // camera is the primary action — and routes to setup if it can't work yet
   if(cur===todayKey()){
-    h += S.apiKey
+    h += activeKey()
       ? `<button class="shoot" onclick="document.getElementById('cam').click()">
           <span class="cico">◉</span><span><b>Take a photo of your meal</b>
           <small>Logged automatically — it only asks if it's unsure</small></span></button>`
@@ -654,10 +654,10 @@ function renderTrends(){
 }
 
 function renderHealth(){
-  let h = '';
+  let h = '<div id="flash"></div>';
   if(!S.ghToken && S.logs.length>4) h += `<div class="hint bad"><b>Nothing is backed up.</b> ${S.logs.length} meals and ${S.flares.length} flares exist only in this browser.
     <br><button class="btn" style="margin-top:9px;padding:9px 15px;font-size:13.5px" onclick="openGit()">Back up to GitHub</button></div>`;
-  if(!S.apiKey) h += `<div class="hint bad"><b>The camera isn't set up yet.</b> Photos will save but you'll have to type the numbers in yourself.
+  if(!activeKey()) h += `<div class="hint bad"><b>The camera isn't set up yet.</b> Photos will save but you'll have to type the numbers in yourself.
     <br><button class="btn" style="margin-top:9px;padding:9px 15px;font-size:13.5px" onclick="openKey()">Set it up — 2 minutes</button></div>`;
   h += `<div class="card"><div class="row sp"><h2 style="margin:0">Gout flares</h2>
       <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openFlare()">+ Log flare</button></div>
@@ -704,10 +704,23 @@ function renderHealth(){
   h += `</div>`;
 
   h += `<div class="card" id="settings"><h2>Settings</h2>
-    <div class="fld"><label>Camera / Anthropic API key</label>
-      <div class="row" style="gap:8px"><span class="pill ${S.apiKey?'ok':'bad'}">${S.apiKey?'Connected':'Not set'}</span>
-        <button class="btn ghost" style="padding:8px 14px;font-size:13px;margin-left:auto" onclick="openKey()">${S.apiKey?'Change':'Set up'}</button></div>
-      <p class="tiny" style="margin:6px 0 0"><b>To get one:</b> go to <b>console.anthropic.com</b> → sign in → <b>Settings → API keys</b> → <b>Create Key</b> → copy it and paste above. You'll need a few dollars of credit under Billing. Roughly 1–3 sen per photo.<br><br>Stored only in this browser on this device. It is sent to Anthropic and nowhere else — this page has no server.</p></div>
+    <div class="fld"><label>AI provider</label>
+      <select onchange="S.provider=this.value;S.model='';save();render()">
+        ${Object.keys(PROVIDERS).map(k=>`<option value="${k}" ${(S.provider||'anthropic')===k?'selected':''}>${PROVIDERS[k].name}</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>Model</label>
+      <select onchange="S.model=this.value;save();render()">
+        ${prov().models.map(m=>`<option value="${m.id}" ${curModel()===m.id?'selected':''}>${m.n} — ${(m.usd*470).toFixed(1)} sen/photo</option>`).join('')}
+      </select></div>
+    ${prov().note?`<p class="tiny" style="margin:-4px 0 10px;color:var(--good)">${prov().note}</p>`:''}
+    <div class="fld"><label>${prov().keyName}</label>
+      <div class="row" style="gap:8px"><span class="pill ${activeKey()?'ok':'bad'}">${activeKey()?'Connected':'Not set'}</span>
+        <button class="btn ghost" style="padding:8px 14px;font-size:13px;margin-left:auto" onclick="openKey()">${activeKey()?'Change':'Set up'}</button></div>
+      <p class="tiny" style="margin:7px 0 0">${prov().keyWhere}</p></div>
+    <button class="btn ghost full" onclick="testConn()" style="margin-bottom:10px">Test connection</button>
+    <div class="swaprow"><span>Photos analysed</span><span class="sv" style="color:var(--ink2)">${S.shots||0}</span></div>
+    <div class="swaprow"><span>Estimated spend</span><span class="sv" style="color:var(--ink2)">~RM ${((S.spendUsd||0)*4.7).toFixed(2)}</span></div>
+    <p class="tiny" style="margin:8px 0 0">Estimate only — check your provider's dashboard for the real figure. Your own measured dish data is used whenever the photo matches something in the plan, which costs nothing and beats a guess.</p>
     <h3>Daily targets</h3>
     ${METRICS.map(m=>`<div class="fld"><label>${m.n} (${m.u||'kcal'})</label>
       <input type="number" value="${S.targets[m.k]}" onchange="S.targets['${m.k}']=+this.value||${DEFAULT_TARGETS[m.k]};save();"></div>`).join('')}
@@ -814,6 +827,7 @@ function flashFor(id){
       <div style="flex:1;min-width:0">
         <div class="fh">Logged — ${l.name} <span class="tiny" style="font-weight:400">(${l.meal||''})</span></div>
         ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${l.seen}</div>`:''}
+        ${l.matched?`<div class="fs" style="color:var(--good)">✓ Matched to measured data for ${l.matched}</div>`:''}
       </div></div>
     <div class="pq"><span class="pql">How much did you actually eat?</span>
       <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>
@@ -885,25 +899,56 @@ function delLog(id){ deleteEntry(id); }
 function delRec(k,id){ S[k]=S[k].filter(r=>r.id!==id); save(); render(); }
 
 function openKey(){
-  openSheet(`<h2>Turn on the camera</h2>
+  const P=prov();
+  openSheet(`<h2>Connect ${P.name}</h2>
     <p class="muted" style="margin:-4px 0 14px">One key, pasted once. After this, photographing a meal logs it.</p>
-    <div class="hint" style="font-size:13px">
-      <b>1.</b> Open <b>console.anthropic.com</b> and sign in<br>
-      <b>2.</b> Left sidebar → <b>API keys</b> → <b>Create Key</b><br>
-      <b>3.</b> Copy it (you only get to see it once)<br>
-      <b>4.</b> Paste it below<br>
-      <b>5.</b> Under <b>Billing</b>, add a few dollars of credit
-    </div>
-    <div class="fld" style="margin-top:14px"><label>Paste your key</label>
-      <input type="password" id="k_v" value="${S.apiKey||''}" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></div>
-    <p class="tiny" style="margin:-4px 0 14px">Stays in this browser on this device. This page has no server — the key goes to Anthropic and nowhere else. Photos cost roughly 1–3 sen each.</p>
-    <button class="btn full" onclick="saveKey()">Save</button>
+    <div class="hint" style="font-size:13px"><b>Where to get it:</b> ${P.keyWhere}<br>
+      Then add a little credit to the account. At <b>${(modelCost()*470).toFixed(1)} sen a photo</b>, three meals a day is about <b>RM ${(modelCost()*4.7*3*30).toFixed(2)} a month</b>.</div>
+    <div class="fld" style="margin-top:14px"><label>Paste your ${P.keyName}</label>
+      <input type="password" id="k_v" value="${activeKey()}" placeholder="${P.keyPrefix}…" autocomplete="off" spellcheck="false"></div>
+    <p class="tiny" style="margin:-4px 0 14px">Stays in this browser on this device. This page has no server — the key goes to ${P.name} and nowhere else.</p>
+    <button class="btn full" onclick="saveKey()">Save and test</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Later</button>`);
 }
-function saveKey(){
+async function saveKey(){
   const v=document.getElementById('k_v').value.trim();
-  if(v && !v.startsWith('sk-')){ if(!confirm("That doesn't look like an Anthropic key (they start with sk-). Save it anyway?")) return; }
-  S.apiKey=v; save(); closeSheet(); render();
+  if(S.provider==='ilmu') S.ilmuKey=v; else S.apiKey=v;
+  save(); closeSheet(); render();
+  if(v) testConn();
+}
+
+/* A 1x1 pixel round-trip. Distinguishes "key wrong" from "browser blocked",
+   which is the question that decides whether ILMU is usable without a server. */
+async function testConn(){
+  const P=prov();
+  if(!activeKey()){ alert('Add a key first.'); return; }
+  tab='health'; render();
+  showFlash(`<div class="flash ok"><div class="fh"><span class="spin"></span> Testing ${P.name}…</div></div>`);
+  const px='/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';
+  try{
+    const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
+    if(S.provider==='ilmu') hdr['Authorization']='Bearer '+activeKey();
+    else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
+    const r=await fetch(P.url,{method:'POST',headers:hdr,body:JSON.stringify({
+      model:curModel(), max_tokens:16,
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:px}},
+        {type:'text',text:'Reply with the single word: ok'}]}]})});
+    const txt=await r.text();
+    if(r.ok){
+      showFlash(`<div class="flash ok"><div class="fh">${P.name} works</div>
+        <div class="fs">Model <b>${curModel()}</b> answered. Photos will cost about <b>${(modelCost()*470).toFixed(1)} sen</b> each.</div></div>`);
+    } else {
+      let msg=txt.slice(0,160); try{ const j=JSON.parse(txt); msg=(j.error&&(j.error.message||j.error.type))||j.message||msg; }catch(e){}
+      showFlash(`<div class="flash warn"><div class="fh">${P.name} refused the request (${r.status})</div>
+        <div class="fs">${msg}</div>
+        <div class="fa"><button onclick="openKey()">Check the key</button></div></div>`);
+    }
+  }catch(e){
+    showFlash(`<div class="flash warn"><div class="fh">Blocked before it reached ${P.name}</div>
+      <div class="fs">The request never left the browser. That usually means <b>CORS</b> — this provider doesn't allow calls straight from a web page${S.provider==='ilmu'?', which ILMU has not documented either way':''}. It needs a small server proxy, or pick a different provider above.</div>
+      <div class="fa"><button onclick="S.provider='anthropic';S.model='';save();render();">Switch to Claude</button></div></div>`);
+  }
 }
 function openFlare(){
   openSheet(`<h2>Log a gout flare</h2>
@@ -971,7 +1016,7 @@ function onPhoto(input){
     pendingFull =await shrinkToBudget(full, S.photoKB||100, 900);
     pendingPhoto=pendingThumb;
     input.value='';
-    if(!S.apiKey){
+    if(!activeKey()){
       pendingPhoto=null;
       showFlash(`<div class="flash warn">
         <div class="fh">The camera isn't connected yet</div>
@@ -1002,11 +1047,19 @@ function onPhoto(input){
       }
 
       const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(Date.now());
+      const mt = matchDish(out.name);
+      if(mt){                                  // swap the estimate for measured data
+        const d=mt.dish;
+        out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur;
+        out.matched=d.n; out.grade=d.grade;
+        out.portionSeen=(out.portionSeen? out.portionSeen+' · ' : '')+'using our measured figures for '+d.n+' ('+d.srv+')';
+      }
+      S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
 
       // Confident → log it and get out of the way. Unsure → ask.
       if(out.confidence==='high'){
         const entry={id:uid(),date:cur,ts:Date.now(),dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
-          seen:out.portionSeen||'', hasPhoto:!!pendingThumb,
+          seen:out.portionSeen||'', matched:out.matched||'', hasPhoto:!!pendingThumb,
           base:{kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur},
           kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur};
         await commitPhoto(entry.id);
@@ -1086,17 +1139,16 @@ async function shrinkToBudget(dataUrl, budgetKB, startPx){
 }
 async function identify(dataUrl){
   const b64=dataUrl.split(',')[1];
-  const known=DB.map(d=>`${d.n} (${d.srv}): ${d.kcal}kcal, ${d.sat}g sat, ${d.na}mg Na, ${d.sug}g sugar, ${d.pur}mg purine`).join('\n');
+  const P=prov();
   const body={
-    model:'claude-opus-4-5-20251101', max_tokens:400,
+    model:curModel(), max_tokens:400,
     messages:[{role:'user',content:[
       {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-      {type:'text',text:`Identify this meal and estimate its nutrition for ONE serving as shown.
+      {type:'text',text:`Identify this meal and estimate its nutrition.
 
-Here is a reference table of dishes this person eats, with values I trust — if the photo matches one, reuse its numbers, scaled to the visible portion:
-${known}
+The person is Malaysian-Chinese, in Kuala Lumpur, and eats mostly Chinese, Japanese and Western food plus local hawker dishes. Name the dish the way a Malaysian would — "char kuey teow", "wantan mee kon lou", "siew yok rice", "nasi lemak", not a generic description.
 
-Purine matters here (the person has gout). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
+Purine matters a little (they have gout, but it is secondary). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
 
 PRIORITY: this person has a coronary calcium score of 91 and LDL 5.2 mmol/L. **Saturated fat is the number that matters most**, then sodium. Purine/gout is secondary. Write the note about saturated fat unless something else is clearly worse.
 
@@ -1115,13 +1167,14 @@ Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
   };
   let r;
   try{
-    r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'content-type':'application/json','x-api-key':S.apiKey,
-        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify(body)
-    });
-  }catch(e){ throw aiErr('offline','No connection','Your phone couldn\'t reach Anthropic. Check your signal or Wi-Fi and try again.'); }
+    const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
+    if(S.provider==='ilmu'){ hdr['Authorization']='Bearer '+activeKey(); }
+    else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
+    r=await fetch(P.url,{method:'POST',headers:hdr,body:JSON.stringify(body)});
+  }catch(e){ throw aiErr('cors','Couldn\'t reach '+P.name,
+      S.provider==='ilmu'
+        ? 'Either you\'re offline, or ILMU blocks direct calls from a browser (CORS). Run Test connection in Settings to tell which.'
+        : 'Check your signal or Wi-Fi and try again.'); }
 
   if(!r.ok){
     const t=await r.text().catch(()=>'');
@@ -1148,6 +1201,50 @@ Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
           meal:o.meal||'', portionSeen:o.portionSeen||'',
           confidence:(o.confidence==='high'?'high':'low'), why:o.why||''};
 }
+/* The model names the dish; our own measured Malaysian data supplies the
+   numbers whenever it recognises one. Better than a guess, and it means the
+   dish table no longer has to be sent with every photo. */
+/* Malaysian romanisation is wildly inconsistent — kuey / kway / koay / kueh
+   teow all name the same dish. Fold the common variants, then allow a small
+   edit distance on top so one stray letter doesn't lose the match. */
+const SPELL=[[/k[uwoa]{1,2}[ae]?y?\s*teow/g,'kwayteow'],[/kue?h/g,'kuih'],[/mee|mi\b/g,'mee'],
+  [/bee\s*hoon|bihun|mee\s*hoon/g,'beehoon'],[/char\s*siu|char\s*siew|chashu/g,'charsiew'],
+  [/siu\s*yuk|siew\s*yok|roast\s*pork\s*belly/g,'siewyok'],[/wan\s*ton|wantan|wonton/g,'wantan'],
+  [/nasi\s*lemak/g,'nasilemak'],[/kon\s*lo[uh]?|dry\s*toss/g,'dry'],[/tonkotsu|ton\s*kotsu/g,'tonkotsu']];
+function normalise(s){
+  let t=(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  for(const [re,to] of SPELL) t=t.replace(re,to);
+  return t.replace(/\s+/g,' ').trim();
+}
+function editDist(a,b){
+  if(a===b) return 0;
+  const m=a.length,n=b.length; if(!m||!n) return Math.max(m,n);
+  let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const cur=[i];
+    for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur; }
+  return prev[n];
+}
+function wordHit(w,dw){
+  return dw.some(x=> x===w || x.startsWith(w) || w.startsWith(x) ||
+    editDist(x,w) <= (Math.max(x.length,w.length)>5 ? 2 : 1));
+}
+function matchDish(name){
+  const n=normalise(name); if(n.length<3) return null;
+  const words=n.split(' ').filter(w=>w.length>2);
+  let best=null,bestScore=0;
+  for(const d of DB){
+    const dn=normalise(d.n);
+    let score=0;
+    if(dn===n) score=100;
+    else if(dn.includes(n)||n.includes(dn)) score=70;
+    else { const dw=dn.split(' ');
+      const hits=words.filter(w=>wordHit(w,dw)).length;
+      score=hits? (hits/Math.max(words.length,dw.length))*60 : 0; }
+    if(score>bestScore){ bestScore=score; best=d; }
+  }
+  return bestScore>=50? {dish:best,score:Math.round(bestScore)} : null;
+}
 function aiErr(kind,title,fix){ const e=new Error(title); e.kind=kind; e.title=title; e.fix=fix; return e; }
 
 /* ============================================================
@@ -1156,6 +1253,34 @@ function aiErr(kind,title,fix){ const e=new Error(title); e.kind=kind; e.title=t
    gist API never truncates them on the way back down.
    Secrets are deliberately NOT backed up.
    ============================================================ */
+/* Vision providers. ILMU exposes an Anthropic-compatible endpoint, so the
+   request body below is identical for both — only the URL, auth header and
+   model name change. Costs are per photo at ~1,000 input + 200 output tokens. */
+const PROVIDERS={
+  anthropic:{
+    name:'Claude (Anthropic)', url:'https://api.anthropic.com/v1/messages',
+    keyName:'Anthropic API key', keyWhere:'console.anthropic.com → API keys → Create Key',
+    keyPrefix:'sk-ant-',
+    models:[
+      {id:'claude-haiku-4-5-20251001', n:'Haiku 4.5 — cheapest', usd:0.0024},
+      {id:'claude-sonnet-5',           n:'Sonnet 5 — balanced',  usd:0.0060},
+      {id:'claude-opus-5',             n:'Opus 5 — most accurate', usd:0.0150}
+    ]},
+  ilmu:{
+    name:'ILMU (Malaysia)', url:'https://api.ilmu.ai/anthropic/v1/messages',
+    keyName:'ILMU API key', keyWhere:'console.ilmu.ai → Dashboard → Keys',
+    keyPrefix:'sk-',
+    note:'Data stays in Malaysia and is never used for training.',
+    models:[
+      {id:'ilmu-vision-v1.3', n:'ILMU Vision 1.3 — cheapest', usd:0.0017},
+      {id:'ilmu-v3.1',        n:'ILMU 3.1 — flagship',        usd:0.0040}
+    ]}
+};
+function prov(){ return PROVIDERS[S.provider||'anthropic']; }
+function curModel(){ const p=prov(); return S.model && p.models.some(m=>m.id===S.model) ? S.model : p.models[0].id; }
+function modelCost(){ const p=prov(); const m=p.models.find(x=>x.id===curModel()); return m?m.usd:0; }
+function activeKey(){ return (S.provider==='ilmu' ? S.ilmuKey : S.apiKey)||''; }
+
 const GH='https://api.github.com';
 const SHARD_MAX=800000;
 let backupTimer=null, backupBusy=false;
@@ -1317,8 +1442,9 @@ function disconnectGit(){
 }
 
 async function copySetupLink(){
-  if(!S.apiKey && !S.ghToken){ alert('Nothing to put in the link yet — connect a key first.'); return; }
+  if(!activeKey() && !S.ghToken){ alert('Nothing to put in the link yet — connect a key first.'); return; }
   const q=[]; if(S.apiKey) q.push('k='+encodeURIComponent(S.apiKey));
+  if(S.ilmuKey) q.push('i='+encodeURIComponent(S.ilmuKey));
   if(S.ghToken) q.push('g='+encodeURIComponent(S.ghToken));
   const url=location.origin+location.pathname+'#'+q.join('&');
   try{ await navigator.clipboard.writeText(url);
@@ -1370,10 +1496,11 @@ document.getElementById('bld').textContent='v'+BUILD;
 function readHashKeys(){
   if(!location.hash) return;
   const q=new URLSearchParams(location.hash.slice(1));
-  const k=q.get('k'), g=q.get('g');
+  const k=q.get('k'), g=q.get('g'), il=q.get('i');
   let got=false;
   if(k){ S.apiKey=decodeURIComponent(k); got=true; }
   if(g){ S.ghToken=decodeURIComponent(g); got=true; }
+  if(il){ S.ilmuKey=decodeURIComponent(il); got=true; }
   if(got){ saveLocal();
     history.replaceState(null,'',location.pathname+location.search);   // strip it back off
     render();
