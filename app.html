@@ -358,7 +358,7 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='13';
+const BUILD='14';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -741,9 +741,21 @@ function renderHealth(){
     <button class="btn ghost full" onclick="exportData()">Export all data (JSON)</button>
     <p class="tiny" style="margin:8px 0 0">Your data lives only in this browser. Export before clearing site data or switching phones.</p>
     <a class="btn ghost full" href="index.html" style="margin-top:10px;text-decoration:none">Open the eating plan</a>
+    <hr>
+    <h3>Keeping your keys</h3>
+    <p class="tiny" style="margin:0 0 10px">Keys live in this browser's storage. Clearing website data wipes them — which is why they keep disappearing. Two things fix that permanently:</p>
+    <div class="swaprow"><span>Storage marked persistent</span><span class="sv" id="perstat" style="color:var(--ink2)">checking…</span></div>
+    <div class="swaprow"><span>Installed to home screen</span><span class="sv" style="color:var(--ink2)">${window.matchMedia('(display-mode: standalone)').matches?'yes':'no — do this'}</span></div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="copySetupLink()">Copy my setup link</button>
+    <p class="tiny" style="margin:8px 0 0">Bookmark that link. It carries your keys in the part of a URL that never reaches any server and never touches your repo. If storage is ever cleared, opening the bookmark restores both keys instantly.</p>
+    <hr>
+    <h3>Updating</h3>
+    <button class="btn ghost full" onclick="forceUpdate()">Check for a new version</button>
+    <p class="tiny" style="margin:8px 0 0">Use this instead of clearing website data — it refreshes the app without touching your log, your photos or your keys.</p>
     <p class="tiny" style="margin:14px 0 0;text-align:center">Build ${BUILD} · ${BUILD_DATE}</p>
   </div>`;
   view.innerHTML = h;
+  refreshPersistStat();
 }
 
 function foodBefore(date){
@@ -1304,6 +1316,31 @@ function disconnectGit(){
   S.ghToken=''; S.gistId=''; S.gistUrl=''; S.lastBackup=0; S.lastPhotoBackup=0; S.backupErr=''; saveLocal(); render();
 }
 
+async function copySetupLink(){
+  if(!S.apiKey && !S.ghToken){ alert('Nothing to put in the link yet — connect a key first.'); return; }
+  const q=[]; if(S.apiKey) q.push('k='+encodeURIComponent(S.apiKey));
+  if(S.ghToken) q.push('g='+encodeURIComponent(S.ghToken));
+  const url=location.origin+location.pathname+'#'+q.join('&');
+  try{ await navigator.clipboard.writeText(url);
+    alert('Setup link copied.\n\nBookmark it, or send it to yourself. Anyone who opens it gets your keys, so keep it to yourself.');
+  }catch(e){ prompt('Copy this and bookmark it:', url); }
+}
+async function forceUpdate(){
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const r of regs){ try{ await r.update(); }catch(e){} }
+    }
+    if(window.caches){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }
+    alert('Refreshed. Your log, photos and keys are untouched.');
+    location.reload(true);
+  }catch(e){ alert('Update check failed — '+String(e.message||e)); }
+}
+async function refreshPersistStat(){
+  const el=document.getElementById('perstat'); if(!el) return;
+  try{ el.textContent = (navigator.storage&&navigator.storage.persisted) ? ((await navigator.storage.persisted())?'yes':'not granted') : 'unsupported'; }
+  catch(e){ el.textContent='unknown'; }
+}
 function exportData(){
   const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a');
@@ -1316,6 +1353,37 @@ function exportData(){
    ============================================================ */
 function go(t){ closeSheet(); tab=t; render(); }
 document.getElementById('bld').textContent='v'+BUILD;
+
+/* Ask the browser to mark this storage as persistent so it isn't evicted
+   under pressure. Safari grants this readily once the app is on the home
+   screen, which is the single biggest thing that stops keys vanishing. */
+(async()=>{ try{
+  if(navigator.storage && navigator.storage.persist){
+    const already=await navigator.storage.persisted();
+    if(!already) await navigator.storage.persist();
+  }
+}catch(e){} })();
+
+/* Keys can be carried in the URL fragment. A fragment is never sent to the
+   server and never appears in the repo — so bookmarking a setup link means
+   that even a full "clear website data" is one tap from recovered. */
+function readHashKeys(){
+  if(!location.hash) return;
+  const q=new URLSearchParams(location.hash.slice(1));
+  const k=q.get('k'), g=q.get('g');
+  let got=false;
+  if(k){ S.apiKey=decodeURIComponent(k); got=true; }
+  if(g){ S.ghToken=decodeURIComponent(g); got=true; }
+  if(got){ saveLocal();
+    history.replaceState(null,'',location.pathname+location.search);   // strip it back off
+    render();
+    setTimeout(()=>showFlash(`<div class="flash ok"><div class="fh">Keys restored from your setup link</div>
+      <div class="fs">Camera and backup are connected again.</div></div>`),300);
+  }
+}
+readHashKeys();
+// also handle tapping the bookmark while the app is already open
+window.addEventListener('hashchange', readHashKeys);
 (async()=>{ try{ const all=await IDB.entries();
   for(const k of Object.keys(all)) THUMBS[k]=all[k].thumb||all[k].full;
   // migrate any photos still living in localStorage from older builds
