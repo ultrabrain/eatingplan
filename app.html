@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Food Log</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1c5cab" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Food Log">
+<link rel="manifest" href="app.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<style>
+:root{
+  color-scheme: light;
+  --surface:#fcfcfb; --page:#f9f9f7; --raised:#ffffff;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --blue:#2a78d6; --blue-d:#1c5cab; --blue-l:#86b6ef;
+  --aqua:#1baf7a; --orange:#eb6834; --violet:#4a3aa7;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface:#1a1a19; --page:#0d0d0d; --raised:#232322;
+    --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+    --blue:#3987e5; --blue-d:#5598e7; --blue-l:#184f95;
+    --aqua:#199e70; --orange:#d95926; --violet:#9085e9;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior-y:none}
+body{
+  margin:0;background:var(--page);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding-bottom:calc(68px + env(safe-area-inset-bottom));
+}
+.wrap{max-width:640px;margin:0 auto;padding:14px 14px 24px;
+  padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+h1{font-size:20px;margin:0;letter-spacing:-0.02em}
+h2{font-size:16px;margin:0 0 10px;letter-spacing:-0.01em}
+h3{font-size:13px;margin:18px 0 7px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);font-weight:650}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:15px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:10px}
+.sp{justify-content:space-between}
+.muted{color:var(--ink2);font-size:13px}
+.tiny{font-size:11.5px;color:var(--muted)}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select,textarea{font:inherit;background:var(--raised);color:var(--ink);
+  border:1px solid var(--ring);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.btn{background:var(--blue);color:#fff;border-radius:11px;padding:11px 16px;font-weight:600;font-size:14.5px;text-align:center;display:inline-block}
+.btn.ghost{background:var(--raised);color:var(--ink);border:1px solid var(--ring)}
+.btn.danger{background:var(--crit)}
+.btn.full{display:block;width:100%}
+.btn:active{opacity:.75}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:var(--page);
+  padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid var(--grid)}
+.hd{max-width:640px;margin:0 auto;padding:8px 14px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.datenav{display:flex;align-items:center;gap:4px}
+.datenav button{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink2);font-size:17px}
+.datenav button:active{background:var(--grid)}
+.dlab{font-size:13.5px;font-weight:600;min-width:82px;text-align:center}
+
+/* meters */
+.meter{margin:13px 0}
+.meter .top{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:5px}
+.meter .nm{font-weight:600}
+.meter .vals{font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12.5px}
+.meter .track{height:9px;background:var(--grid);border-radius:5px;overflow:hidden;position:relative}
+.meter .fill{height:100%;border-radius:5px;transition:width .3s ease}
+.meter .why{font-size:11.5px;color:var(--muted);margin-top:3px}
+.pct{font-weight:700;font-variant-numeric:tabular-nums}
+
+/* dish list */
+.search{margin-bottom:10px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;font-size:12.5px;padding:6px 12px;border-radius:18px;background:var(--raised);border:1px solid var(--ring);color:var(--ink2)}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
+.dish{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--grid);width:100%;text-align:left}
+.dish:last-child{border-bottom:0}
+.dish:active{background:var(--grid)}
+.dish .info{flex:1;min-width:0}
+.dish .nm{font-weight:600;font-size:14.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dish .sub{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dish .add{flex:none;width:30px;height:30px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:19px;line-height:1;font-weight:400}
+.flag{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+
+/* logged entries */
+.entry{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--grid)}
+.entry:last-child{border-bottom:0}
+.entry .t{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;width:42px;flex:none}
+.entry .e-nm{flex:1;font-size:14px;min-width:0}
+.entry .e-nm small{display:block;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.entry .del{color:var(--muted);padding:6px 4px;font-size:16px}
+.thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;flex:none;border:1px solid var(--ring)}
+
+/* nav */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--surface);
+  border-top:1px solid var(--grid);padding-bottom:env(safe-area-inset-bottom)}
+.nv{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.nv button{padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--muted);font-weight:600}
+.nv button.on{color:var(--blue)}
+.nv .ic{font-size:19px;line-height:1}
+
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet-bg.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--surface);
+  border-radius:18px 18px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(100%);transition:transform .25s cubic-bezier(.32,.72,0,1);
+  max-height:88vh;overflow-y:auto;max-width:640px;margin:0 auto}
+.sheet.on{transform:translateY(0)}
+.grab{width:36px;height:4px;background:var(--axis);border-radius:2px;margin:0 auto 14px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12px;font-weight:650;color:var(--ink2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+.qty{display:flex;gap:8px}
+.qty button{flex:1;padding:9px;border-radius:9px;background:var(--raised);border:1px solid var(--ring);font-size:13.5px;font-weight:600}
+.qty button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* misc */
+.pill{font-size:11px;font-weight:650;padding:2px 7px;border-radius:12px;white-space:nowrap}
+.pill.ok{background:rgba(12,163,12,.14);color:#0a7a0a}
+.pill.warn{background:rgba(250,178,25,.2);color:#8a5c00}
+.pill.bad{background:rgba(208,59,59,.14);color:#a12b2b}
+@media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .pill.ok{color:#0ca30c}
+ :root:where(:not([data-theme="light"])) .pill.warn{color:#fab219}
+ :root:where(:not([data-theme="light"])) .pill.bad{color:#e66767}}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:13.5px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:56px;margin:10px 0 4px}
+.bars .b{flex:1;background:var(--blue-l);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bars .b.over{background:var(--crit)}
+.blabs{display:flex;gap:3px;font-size:9.5px;color:var(--muted);text-align:center}
+.blabs span{flex:1}
+.hint{background:rgba(42,120,214,.07);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:10px 12px;font-size:13px;margin:10px 0}
+.hint.bad{background:rgba(208,59,59,.06);border-color:var(--crit)}
+.hint.good{background:rgba(12,163,12,.06);border-color:var(--good)}
+.hint b{font-weight:650}
+hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
+.swaprow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--grid);font-size:13.5px}
+.swaprow:last-child{border-bottom:0}
+.swaprow .ar{color:var(--muted);flex:none}
+.swaprow .sv{margin-left:auto;font-size:12px;font-weight:650;color:var(--good);white-space:nowrap;font-variant-numeric:tabular-nums}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--ring);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* camera hero */
+.shoot{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  background:var(--blue);color:#fff;border-radius:15px;padding:16px 17px;margin-bottom:12px;
+  box-shadow:0 2px 10px rgba(42,120,214,.28)}
+.shoot:active{transform:scale(.985)}
+.shoot .cico{font-size:26px;line-height:1;flex:none}
+.shoot b{display:block;font-size:15.5px;font-weight:650}
+.shoot small{display:block;font-size:12px;opacity:.9;margin-top:2px;line-height:1.35}
+
+/* grouped meter cards */
+.ghead{display:flex;flex-direction:column;gap:1px;margin-bottom:4px;padding-bottom:9px;border-bottom:1px solid var(--grid)}
+.gn{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.gs{font-size:11.5px;color:var(--muted)}
+.card.secondary{background:transparent;border-style:dashed}
+.card.secondary .gn{color:var(--muted)}
+.card.secondary .meter .nm{font-weight:500;color:var(--ink2)}
+.meter.hero .nm{font-size:16px}
+.meter.hero .pct{font-size:17px}
+.meter.hero .track{height:12px}
+
+/* result flash */
+.flash{border-radius:13px;padding:14px 15px;margin-bottom:12px;animation:pop .3s ease}
+@keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.flash.ok{background:rgba(12,163,12,.1);border:1px solid rgba(12,163,12,.3)}
+.flash.warn{background:rgba(208,59,59,.08);border:1px solid rgba(208,59,59,.3)}
+.flash .fh{font-weight:650;font-size:15px;margin-bottom:3px}
+.flash .fs{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.flash .fa{display:flex;gap:8px;margin-top:10px}
+.flash .fa button{flex:1;padding:8px;border-radius:9px;background:var(--raised);border:1px solid var(--ring);font-size:13px;font-weight:600}
+.conf{font-size:11px;font-weight:650;padding:2px 7px;border-radius:11px;background:var(--grid);color:var(--ink2);margin-left:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <h1 id="title">Today</h1>
+    <div class="datenav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <span class="dlab" id="dlab">—</span>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="view"></div>
+
+<nav><div class="nv">
+  <button data-tab="today" class="on"><span class="ic">◍</span>Today</button>
+  <button data-tab="add"><span class="ic">+</span>Log food</button>
+  <button data-tab="trends"><span class="ic">◫</span>Trends</button>
+  <button data-tab="health"><span class="ic">♡</span>Health</button>
+</div></nav>
+
+<div class="sheet-bg" id="sbg"></div>
+<div class="sheet" id="sheet"></div>
+
+<script>
+/* ============================================================
+   FOOD DATABASE — built from measured sources where they exist.
+   grade: M = lab-measured · C = calculated from ingredients
+          E = estimated from nearest measured analogue (±30%)
+   Values are PER SERVING as listed in `srv`.
+   pur = total purine mg (Kaneko 2014 HPLC basis where measured)
+   ============================================================ */
+const DB = [
+// --- BREAKFAST ---
+{id:'siewpau',   n:'Siew pau',                    g:'bfast', srv:'1 pc ~65g',  kcal:240, sat:6.5, na:350,  sug:6,   pur:50,  grade:'E'},
+{id:'cspau',     n:'Char siew pau',               g:'bfast', srv:'1 pc 120g',  kcal:363, sat:4,   na:450,  sug:12,  pur:50,  grade:'M/E'},
+{id:'siewmai',   n:'Siew mai (4 pc)',             g:'bfast', srv:'4 pc ~128g', kcal:232, sat:3.2, na:800,  sug:2,   pur:90,  grade:'M'},
+{id:'eggtart',   n:'Portuguese egg tart',         g:'bfast', srv:'1 pc ~60g',  kcal:265, sat:8,   na:180,  sug:7.3, pur:5,   grade:'E'},
+{id:'meehoong',  n:'Mee hoon goreng + sambal + fried egg', g:'bfast', srv:'~300g', kcal:640, sat:9, na:1700, sug:13, pur:60, grade:'E'},
+{id:'csrice',    n:'Char siew rice',              g:'bfast', srv:'327g',       kcal:605, sat:6.5, na:880,  sug:12,  pur:150, grade:'M'},
+{id:'syrice',    n:'Siew yok rice',               g:'bfast', srv:'~350g',      kcal:700, sat:21,  na:900,  sug:4,   pur:110, grade:'C'},
+
+// --- LUNCH / HAWKER ---
+{id:'nlayam',    n:'Nasi lemak ayam berempah',    g:'lunch', srv:'~360g',      kcal:875, sat:15,  na:1550, sug:8,   pur:190, grade:'C'},
+{id:'nlplain',   n:'Nasi lemak (plain)',          g:'lunch', srv:'210g',       kcal:494, sat:7.6, na:838,  sug:6.5, pur:120, grade:'M'},
+{id:'wtmdry',    n:'Wantan mee (dry)',            g:'lunch', srv:'330g',       kcal:411, sat:5,   na:1502, sug:10,  pur:160, grade:'M'},
+{id:'wtmsoup',   n:'Wantan mee (soup)',           g:'lunch', srv:'545g',       kcal:290, sat:4.5, na:1804, sug:6,   pur:230, grade:'M'},
+{id:'panmeed',   n:'Pan mee (dry)',               g:'lunch', srv:'311g',       kcal:511, sat:9.2, na:1491, sug:3,   pur:150, grade:'M'},
+{id:'panmees',   n:'Pan mee (soup)',              g:'lunch', srv:'528g',       kcal:475, sat:8.4, na:2196, sug:3,   pur:200, grade:'M'},
+{id:'burgerlab', n:'myBurgerLab + fries',         g:'lunch', srv:'~400g',      kcal:1050,sat:21,  na:1750, sug:12,  pur:120, grade:'E'},
+{id:'tonkatsu',  n:'Tonkatsu set (Ma Maison)',    g:'lunch', srv:'~395g',      kcal:925, sat:11.5,na:2000, sug:8,   pur:150, grade:'E'},
+{id:'cricer',    n:'Chicken rice (roasted)',      g:'lunch', srv:'382g',       kcal:607, sat:8.7, na:1287, sug:7,   pur:180, grade:'M'},
+{id:'crices',    n:'Chicken rice (steamed)',      g:'lunch', srv:'412g',       kcal:620, sat:7,   na:1100, sug:7,   pur:180, grade:'M/E'},
+{id:'econrice',  n:'Economy rice (3 dishes)',     g:'lunch', srv:'~450g',      kcal:750, sat:11,  na:2000, sug:8,   pur:150, grade:'E'},
+
+// --- WEEKEND / RESTAURANT ---
+{id:'tonkotsu',  n:'Ramen — tonkotsu (finish soup)', g:'wknd', srv:'~700g',   kcal:990, sat:16.5,na:3360, sug:5,   pur:450, grade:'M'},
+{id:'tonkotsuN', n:'Ramen — tonkotsu (leave soup)',  g:'wknd', srv:'~450g',   kcal:700, sat:12,  na:1200, sug:4,   pur:180, grade:'E'},
+{id:'shoyu',     n:'Ramen — shoyu (finish soup)',    g:'wknd', srv:'~700g',   kcal:675, sat:7.5, na:2700, sug:6,   pur:300, grade:'E'},
+{id:'shoyuN',    n:'Ramen — shoyu (leave soup)',     g:'wknd', srv:'~450g',   kcal:520, sat:6,   na:1000, sug:5,   pur:130, grade:'E'},
+{id:'miso',      n:'Ramen — miso (finish soup)',     g:'wknd', srv:'~700g',   kcal:775, sat:9.5, na:3100, sug:8,   pur:320, grade:'E'},
+{id:'sushi',     n:'Sushi (8–10 pc)',             g:'wknd', srv:'~250g',      kcal:450, sat:2.5, na:950,  sug:10,  pur:200, grade:'E'},
+{id:'ckr',       n:'Baked cheese rice',           g:'wknd', srv:'~450g',      kcal:925, sat:24,  na:1500, sug:8,   pur:80,  grade:'E'},
+{id:'ckt',       n:'Char kway teow',              g:'wknd', srv:'384g',       kcal:744, sat:15.5,na:1459, sug:12,  pur:90,  grade:'M'},
+{id:'porknd',    n:'Pork noodles, dry',           g:'wknd', srv:'311g',       kcal:511, sat:9.2, na:1491, sug:3,   pur:350, grade:'M/E'},
+{id:'pornds',    n:'Pork noodles, soup (finish)', g:'wknd', srv:'597g',       kcal:383, sat:4.8, na:1740, sug:3,   pur:550, grade:'M/E'},
+{id:'buncha',    n:'Bun cha + spring rolls',      g:'wknd', srv:'~470g',      kcal:775, sat:10.5,na:2100, sug:17,  pur:120, grade:'E'},
+{id:'carbonara', n:'Pasta carbonara',             g:'wknd', srv:'~400g',      kcal:1000,sat:23.5,na:1650, sug:4,   pur:80,  grade:'E'},
+{id:'fishchips', n:'Fish and chips',              g:'wknd', srv:'~450g',      kcal:925, sat:11.5,na:1750, sug:3,   pur:120, grade:'E'},
+{id:'butterch',  n:'Butter chicken + rice',       g:'wknd', srv:'~450g',      kcal:900, sat:18.5,na:1650, sug:15,  pur:150, grade:'E'},
+{id:'palak',     n:'Palak paneer',                g:'wknd', srv:'200g (1 cup)',kcal:202,sat:3.6, na:484,  sug:3.8, pur:30,  grade:'M'},
+{id:'pizza',     n:'Pizza (2–3 slices)',          g:'wknd', srv:'~250g',      kcal:725, sat:16,  na:1600, sug:8,   pur:60,  grade:'E'},
+
+// --- HOME COOKING ---
+{id:'greensoy',  n:'Stir-fried greens (soy sauce)',    g:'home', srv:'150g', kcal:175, sat:2.4, na:975, sug:2, pur:40, grade:'C'},
+{id:'greensalt', n:'Stir-fried greens (garlic + pinch salt)', g:'home', srv:'150g', kcal:160, sat:2.4, na:200, sug:2, pur:40, grade:'C'},
+{id:'panfish',   n:'Pan-fried fish fillet',            g:'home', srv:'150g', kcal:210, sat:1.6, na:600, sug:0, pur:130, grade:'C'},
+{id:'porkbelly', n:'Pan-fried pork belly, salt+garlic',g:'home', srv:'120g', kcal:405, sat:18.5,na:1000,sug:0, pur:85,  grade:'C'},
+{id:'bonestew',  n:'Pork shoulder bone stew',          g:'home', srv:'120g + broth', kcal:350, sat:8.2, na:1100, sug:2, pur:300, grade:'C'},
+{id:'saltsquid', n:'Salted egg squid',                 g:'home', srv:'150g', kcal:475, sat:12,  na:1400,sug:1, pur:260, grade:'C'},
+{id:'lemonchik', n:'Lemongrass chicken chop (skin on)',g:'home', srv:'180g', kcal:420, sat:7.7, na:600, sug:3, pur:220, grade:'C'},
+{id:'lemonchikN',n:'Lemongrass chicken chop (no skin)',g:'home', srv:'180g', kcal:320, sat:4.7, na:600, sug:3, pur:220, grade:'C'},
+{id:'adobo',     n:'Chicken adobo',                    g:'home', srv:'180g', kcal:425, sat:7,   na:1750,sug:3, pur:220, grade:'C'},
+{id:'panko',     n:'Panko chicken fingers',            g:'home', srv:'180g', kcal:400, sat:5,   na:600, sug:2, pur:210, grade:'C'},
+{id:'steamegg',  n:'Steamed egg with minced pork',     g:'home', srv:'1 egg + 30g', kcal:155, sat:3.9, na:400, sug:1, pur:25, grade:'C'},
+{id:'jtofu',     n:'Fried Japanese tofu + minced pork',g:'home', srv:'140g', kcal:290, sat:5,   na:700, sug:3, pur:55,  grade:'C'},
+{id:'rice',      n:'White rice (1 bowl)',              g:'home', srv:'200g', kcal:260, sat:0.1, na:2,   sug:0, pur:52,  grade:'M'},
+{id:'basmati',   n:'Basmati rice (1 bowl)',            g:'home', srv:'200g', kcal:250, sat:0.1, na:2,   sug:0, pur:50,  grade:'M'},
+
+// --- DRINKS ---
+{id:'tehtarik',  n:'Teh tarik',        g:'drink', srv:'250ml', kcal:150, sat:3,  na:60, sug:23, pur:0, grade:'M'},
+{id:'kopi',      n:'Kopi',             g:'drink', srv:'250ml', kcal:193, sat:4,  na:60, sug:19, pur:0, grade:'M'},
+{id:'kopic',     n:'Kopi-C',           g:'drink', srv:'250ml', kcal:130, sat:2.5,na:60, sug:15, pur:0, grade:'M'},
+{id:'kopio',     n:'Kopi-O kosong',    g:'drink', srv:'250ml', kcal:5,   sat:0,  na:5,  sug:0,  pur:0, grade:'M'},
+{id:'milo',      n:'Milo ais',         g:'drink', srv:'250ml', kcal:180, sat:3,  na:70, sug:22, pur:0, grade:'M'},
+{id:'coconut',   n:'Air kelapa',       g:'drink', srv:'250ml', kcal:55,  sat:0,  na:60, sug:14, pur:0, grade:'M'},
+{id:'kosong',    n:'Air kosong / tea',  g:'drink', srv:'—',    kcal:0,   sat:0,  na:0,  sug:0,  pur:0, grade:'M'},
+];
+
+const GROUPS = {bfast:'Breakfast', lunch:'Lunch', wknd:'Weekend', home:'Home', drink:'Drinks'};
+
+/* Swap suggestions: [fromId, toId, reason] */
+const SWAPS = [
+  ['tonkotsu','tonkotsuN','Leave the broth'],
+  ['shoyu','shoyuN','Leave the broth'],
+  ['miso','shoyuN','Shoyu, and leave the broth'],
+  ['pornds','porknd','Order it dry (kon lou)'],
+  ['wtmsoup','wtmdry','Order it dry'],
+  ['panmees','panmeed','Order it dry'],
+  ['greensoy','greensalt','Garlic + pinch of salt instead of soy'],
+  ['syrice','csrice','Char siew instead of siew yok'],
+  ['cricer','crices','Steamed instead of roasted, skin off'],
+  ['lemonchik','lemonchikN','Take the skin off'],
+  ['porkbelly','panfish','Fish instead of pork belly'],
+  ['saltsquid','panfish','Fish instead — squid is high purine too'],
+  ['tehtarik','kopio','Kosong'],
+  ['kopi','kopio','Kosong'],
+  ['milo','kopio','Kosong'],
+];
+
+/* ============================================================
+   TARGETS — see the eating plan for how each was derived.
+   ============================================================ */
+const DEFAULT_TARGETS = {
+  kcal:2100,  // ~400-500 kcal/day deficit → ~0.4 kg/week toward 75 kg
+  sat:17,     // 7% of energy — LDL 5.2 + CAC 91
+  na:2000,    // WHO limit — diastolic BP 95
+  sug:25,     // WHO conditional <5% energy — HbA1c 5.8%
+  pur:400     // Japanese gout guideline 3rd ed. — urate 500, 2 flares in 2026
+};
+/* Ordered by what actually threatens him. Heart first — that's the
+   reason any of this matters. Purine last: gout hurts, plaque kills. */
+const METRICS = [
+  {k:'sat',  n:'Saturated fat', u:'g',  grp:'heart', hero:true,
+   why:'The one that matters most. LDL 5.2, calcium score 91.'},
+  {k:'na',   n:'Sodium',        u:'mg', grp:'heart',
+   why:'BP 127/95 — the diastolic is already hypertensive.'},
+  {k:'kcal', n:'Calories',      u:'',   grp:'metab',
+   why:'80.6 kg → 75 kg. Weight loss moves HbA1c more than anything else.'},
+  {k:'sug',  n:'Added sugar',   u:'g',  grp:'metab',
+   why:'HbA1c 5.8% — prediabetes.'},
+  {k:'pur',  n:'Purine',        u:'mg', grp:'gout',
+   why:'Gout. Secondary — but flares raise MI risk for 60 days after.'},
+];
+const GRP = {
+  heart:{n:'Heart', sub:'Calcium score 91 · LDL 5.2 — this is the point'},
+  metab:{n:'Weight & glucose', sub:'Prediabetic at 5.8%'},
+  gout:{n:'Gout', sub:'Worth watching, not worth optimising around'}
+};
+function mealOf(ts){
+  const h=new Date(ts).getHours();
+  return h<11?'Breakfast':h<16?'Lunch':h<22?'Dinner':'Late snack';
+}
+const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const LS='foodlog.v1';
+let S = load();
+let cur = todayKey();
+let tab = 'today';
+let filter = 'all';
+let q = '';
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS);
+    if(raw) { const p = JSON.parse(raw); return Object.assign(blank(), p); }
+  }catch(e){ console.warn('load failed', e); }
+  const b = blank();
+  // Seed the two flares already on record, so the history starts complete.
+  b.flares = [
+    {id:'seed1', date:'2026-03-19', joint:'', days:0, notes:'On record before this app — details unknown'},
+    {id:'seed2', date:'2026-08-11', joint:'', days:0, notes:'Followed a hard 30 km run'}
+  ];
+  b.weights = [{id:'seedw', date:'2026-08-05', kg:80.6, ctx:'normal', km:0}];
+  return b;
+}
+function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS}, apiKey:'', recent:[]}; }
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(S)); }catch(e){ alert('Could not save — storage may be full.'); } }
+
+function todayKey(d){ const x = d||new Date(); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
+function shiftKey(k,n){ const [y,m,d]=k.split('-').map(Number); const dt=new Date(y,m-1,d+n); return todayKey(dt); }
+function prettyDate(k){
+  if(k===todayKey()) return 'Today';
+  if(k===shiftKey(todayKey(),-1)) return 'Yesterday';
+  const [y,m,d]=k.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+}
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function logsFor(k){ return S.logs.filter(l=>l.date===k); }
+function totals(k){
+  const t={kcal:0,sat:0,na:0,sug:0,pur:0};
+  for(const l of logsFor(k)) for(const m in t) t[m]+= (l[m]||0)*(l.qty||1);
+  return t;
+}
+function fmt(v,k){ if(k==='na'||k==='kcal') return Math.round(v); return Math.round(v*10)/10; }
+function statusOf(pct){ return pct>100?'bad':pct>=80?'warn':'ok'; }
+function barColor(pct){ return pct>100?'var(--crit)':pct>=80?'var(--warn)':'var(--blue)'; }
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const view = document.getElementById('view');
+
+function render(){
+  document.getElementById('dlab').textContent = prettyDate(cur);
+  document.getElementById('next').style.visibility = cur>=todayKey() ? 'hidden':'visible';
+  document.querySelectorAll('.nv button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  const titles={today:'Food log',add:'Log food',trends:'Trends',health:'Health'};
+  document.getElementById('title').textContent = titles[tab];
+  document.querySelector('.datenav').style.display = (tab==='today'||tab==='add')?'flex':'none';
+  ({today:renderToday, add:renderAdd, trends:renderTrends, health:renderHealth})[tab]();
+  window.scrollTo(0,0);
+}
+
+function meterHTML(m,val,tgt){
+  const pct = tgt? (val/tgt*100) : 0;
+  const over = val - tgt;
+  return `<div class="meter${m.hero?' hero':''}">
+    <div class="top">
+      <span class="nm">${m.n}</span>
+      <span class="vals"><span class="pct" style="color:${pct>100?'var(--crit)':pct>=80?'#8a5c00':'var(--ink)'}">${Math.round(pct)}%</span>
+        &nbsp;${fmt(val,m.k)}${m.u} / ${tgt}${m.u}</span>
+    </div>
+    <div class="track"><div class="fill" style="width:${Math.min(100,pct)}%;background:${barColor(pct)}"></div></div>
+    <div class="why">${pct>100? `<b style="color:var(--crit)">Over by ${fmt(over,m.k)}${m.u}.</b> ` : ''}${m.why}</div>
+  </div>`;
+}
+
+function renderToday(){
+  const t = totals(cur), tg = S.targets, ls = logsFor(cur);
+  let h = '';
+
+  // camera is the primary action
+  if(cur===todayKey()){
+    h += `<button class="shoot" onclick="document.getElementById('cam').click()">
+        <span class="cico">◉</span><span><b>Take a photo of your meal</b>
+        <small>${S.apiKey? 'AI logs it automatically — it only asks if unsure' : 'Add your API key in Health → Settings to enable this'}</small></span></button>
+      <input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
+      <div id="flash"></div>`;
+  }
+
+  for(const g of ['heart','metab','gout']){
+    const ms = METRICS.filter(m=>m.grp===g);
+    h += `<div class="card ${g==='gout'?'secondary':''}">
+      <div class="ghead"><span class="gn">${GRP[g].n}</span><span class="gs">${GRP[g].sub}</span></div>
+      ${ms.map(m=>meterHTML(m,t[m.k],tg[m.k])).join('')}</div>`;
+  }
+
+  // insight
+  const W={heart:1.4, metab:1.0, gout:0.55};   // weight the warning by what actually threatens him
+  const worst = METRICS.map(m=>({m,pct:t[m.k]/tg[m.k]*100,w:(t[m.k]/tg[m.k]*100)*W[m.grp]}))
+                       .sort((a,b)=>b.w-a.w)[0];
+  if(ls.length){
+    if(worst.pct>100){
+      const top = ls.map(l=>({n:l.name,v:(l[worst.m.k]||0)*(l.qty||1)})).sort((a,b)=>b.v-a.v)[0];
+      h += `<div class="hint bad"><b>${worst.m.n} is over budget.</b> Biggest contributor: ${top.n} at ${fmt(top.v,worst.m.k)}${worst.m.u}.
+        ${swapHint(ls)}</div>`;
+    } else if(worst.pct<70){
+      h += `<div class="hint good"><b>Comfortably inside every budget.</b> Nothing to change today.</div>`;
+    } else {
+      h += `<div class="hint"><b>${worst.m.n}</b> is your tightest at ${Math.round(worst.pct)}%. ${fmt(tg[worst.m.k]-t[worst.m.k],worst.m.k)}${worst.m.u} left.</div>`;
+    }
+  }
+
+  h += `<div class="card"><div class="row sp" style="margin-bottom:6px">
+      <h2 style="margin:0">Logged</h2><span class="tiny">${ls.length} item${ls.length===1?'':'s'}</span></div>`;
+  if(!ls.length) h += `<div class="empty">Nothing logged yet.<br><br><button class="btn ghost" onclick="go('add')">Pick from the list instead</button></div>`;
+  else {
+    const byMeal={};
+    for(const l of ls) (byMeal[l.meal||mealOf(l.ts)] ||= []).push(l);
+    for(const meal of MEAL_ORDER){
+      const items=byMeal[meal]; if(!items||!items.length) continue;
+      const msat=items.reduce((s,l)=>s+l.sat*(l.qty||1),0);
+      h += `<h3 style="margin:16px 0 2px">${meal} <span style="text-transform:none;letter-spacing:0;font-weight:400">· ${fmt(msat)}g sat fat</span></h3>`;
+      h += items.sort((a,b)=>a.ts-b.ts).map(l=>`
+        <div class="entry">
+          <span class="t">${new Date(l.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
+          ${l.photo?`<img class="thumb" src="${l.photo}" alt="">`:''}
+          <span class="e-nm">${l.name}${(l.qty||1)!==1?` <span class="tiny">×${l.qty}</span>`:''}
+            ${l.auto?'<span class="pill ok" style="margin-left:5px">AI</span>':''}
+            <small>${Math.round(l.kcal*(l.qty||1))} kcal · <b>${fmt(l.sat*(l.qty||1))}g sat</b> · ${Math.round(l.na*(l.qty||1))}mg Na</small></span>
+          <button class="del" onclick="editLog('${l.id}')" aria-label="Edit">✎</button>
+          <button class="del" onclick="delLog('${l.id}')" aria-label="Delete">×</button>
+        </div>`).join('');
+    }
+    h += `<button class="btn ghost full" style="margin-top:14px" onclick="go('add')">Add from the list</button>`;
+  }
+  h += `</div>`;
+  view.innerHTML = h;
+}
+
+function swapHint(ls){
+  for(const l of ls){
+    const s = SWAPS.find(x=>x[0]===l.dishId);
+    if(s){ const from=DB.find(d=>d.id===s[0]), to=DB.find(d=>d.id===s[1]);
+      const saveNa=from.na-to.na, saveSat=from.sat-to.sat, savePur=from.pur-to.pur;
+      const saveSug=from.sug-to.sug;
+      const bits=[]; if(saveNa>100)bits.push(`${Math.round(saveNa)}mg sodium`);
+      if(saveSat>1)bits.push(`${fmt(saveSat)}g sat fat`);
+      if(saveSug>3)bits.push(`${fmt(saveSug)}g sugar`);
+      if(savePur>40)bits.push(`${Math.round(savePur)}mg purine`);
+      if(bits.length) return `Next time: <b>${s[2]}</b> — saves ${bits.join(', ')}.`;
+    }
+  }
+  return '';
+}
+
+function renderAdd(){
+  let h = `<p class="tiny" style="margin:0 0 12px">Fallback for when the camera can't help — offline, or a dish the AI won't know.</p>
+  <div class="card">
+    <input class="search" id="q" placeholder="Search your dishes…" value="${q}" oninput="q=this.value;renderDishList()">
+    <div class="chips" id="chips">
+      ${['all',...Object.keys(GROUPS)].map(k=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';renderAdd()">${k==='all'?'All':GROUPS[k]}</button>`).join('')}
+    </div>
+    <div id="dishlist"></div>
+  </div>`;
+  view.innerHTML = h;
+  renderDishList();
+  const qi=document.getElementById('q'); if(q) { qi.focus(); qi.setSelectionRange(q.length,q.length); }
+}
+
+function renderDishList(){
+  const el = document.getElementById('dishlist'); if(!el) return;
+  const tg=S.targets;
+  let list = DB.filter(d=> (filter==='all'||d.g===filter) && (!q || d.n.toLowerCase().includes(q.toLowerCase())));
+  if(filter==='all' && !q && S.recent.length){
+    const rec = S.recent.map(id=>DB.find(d=>d.id===id)).filter(Boolean);
+    list = [...rec, ...list.filter(d=>!S.recent.includes(d.id))];
+  }
+  if(!list.length){ el.innerHTML=`<div class="empty">No match.<br><br><button class="btn ghost" onclick="openCustom()">Add it manually</button></div>`; return; }
+  el.innerHTML = list.map(d=>{
+    const worst = Math.max(d.sat/tg.sat, d.na/tg.na, d.pur/tg.pur, d.sug/tg.sug)*100;
+    const c = worst>60?'var(--crit)':worst>=35?'var(--warn)':'var(--good)';
+    return `<button class="dish" onclick="openLog('${d.id}')">
+      <span class="flag" style="background:${c}"></span>
+      <span class="info"><span class="nm">${d.n}</span>
+        <span class="sub">${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na · ${d.pur}mg pur</span></span>
+      <span class="add">+</span></button>`;
+  }).join('') + `<button class="btn ghost full" style="margin-top:12px" onclick="openCustom()">Something else</button>`;
+}
+
+function renderTrends(){
+  const days=[...Array(14)].map((_,i)=>shiftKey(todayKey(),-13+i));
+  const tg=S.targets;
+  let h='';
+  for(const m of METRICS){
+    const vals = days.map(d=>totals(d)[m.k]);
+    const max = Math.max(tg[m.k]*1.25, ...vals) || 1;
+    const logged = days.filter(d=>logsFor(d).length);
+    const avg = logged.length? logged.reduce((s,d)=>s+totals(d)[m.k],0)/logged.length : 0;
+    const overDays = logged.filter(d=>totals(d)[m.k]>tg[m.k]).length;
+    h += `<div class="card">
+      <div class="row sp"><h2 style="margin:0">${m.n}</h2>
+        <span class="pill ${avg>tg[m.k]?'bad':avg>tg[m.k]*0.8?'warn':'ok'}">avg ${fmt(avg,m.k)}${m.u}</span></div>
+      <div class="tiny">${logged.length? `Over budget on ${overDays} of ${logged.length} logged days` : 'No data yet'}</div>
+      <div class="bars">${days.map((d,i)=>{
+        const v=vals[i], has=logsFor(d).length>0;
+        return `<div class="b ${v>tg[m.k]?'over':''}" style="height:${has?Math.max(2,v/max*100):2}%;opacity:${has?1:.25}" title="${prettyDate(d)}: ${fmt(v,m.k)}${m.u}"></div>`;
+      }).join('')}</div>
+      <div class="blabs">${days.map((d,i)=>`<span>${i%3===0? d.slice(8):''}</span>`).join('')}</div>
+      <div class="tiny" style="margin-top:6px">Target ${tg[m.k]}${m.u}/day · last 14 days</div>
+    </div>`;
+  }
+
+  // biggest contributors over 14 days
+  const recent = S.logs.filter(l=>days.includes(l.date));
+  if(recent.length){
+    const by={};
+    for(const l of recent){ const k=l.name; by[k]=by[k]||{n:k,c:0,sat:0,na:0,pur:0,sug:0,kcal:0};
+      by[k].c++; for(const m of ['sat','na','pur','sug','kcal']) by[k][m]+=(l[m]||0)*(l.qty||1); }
+    const arr=Object.values(by);
+    h += `<div class="card"><h2>What's using your budget</h2>
+      <p class="tiny" style="margin:-4px 0 10px">Totals across the last 14 days</p>`;
+    for(const m of ['sat','na','pur','sug']){
+      const met=METRICS.find(x=>x.k===m);
+      const top=arr.slice().sort((a,b)=>b[m]-a[m]).slice(0,3).filter(x=>x[m]>0);
+      if(!top.length) continue;
+      h+=`<h3 style="margin-top:14px">${met.n}</h3>`;
+      h+=top.map(x=>`<div class="swaprow"><span>${x.n} <span class="tiny">×${x.c}</span></span>
+        <span class="sv" style="color:var(--ink2)">${fmt(x[m],m)}${met.u}</span></div>`).join('');
+    }
+    h+=`</div>`;
+  }
+  view.innerHTML = h || `<div class="empty">Log a few meals and trends will appear here.</div>`;
+}
+
+function renderHealth(){
+  let h = `<div class="card"><div class="row sp"><h2 style="margin:0">Gout flares</h2>
+      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openFlare()">+ Log flare</button></div>
+    <p class="tiny" style="margin:8px 0 0">Flare frequency decides whether your treatment recommendation is conditional or strong. This is the highest-value data you can collect.</p>`;
+  if(!S.flares.length) h+=`<div class="empty">No flares logged.<br><span class="tiny">Known: 19 Mar 2026, 11 Aug 2026</span></div>`;
+  else h += S.flares.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(f=>`
+      <div class="entry"><span class="e-nm"><b>${prettyDate(f.date)}</b> — ${f.joint||'—'}
+        <small>${f.days?f.days+' days · ':''}${f.notes||''}</small>
+        ${foodBefore(f.date)}</span>
+        <button class="del" onclick="delRec('flares','${f.id}')">×</button></div>`).join('');
+  h += `</div>`;
+
+  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Weight</h2>
+      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openWeight()">+ Log weight</button></div>
+    <p class="tiny" style="margin:8px 0 0">Pre/post long-run weights separate dehydration from hyponatraemia. Loss over 2% = dehydration. Gain or no loss = you're overdrinking.</p>`;
+  const ws=S.weights.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!ws.length) h+=`<div class="empty">No weights logged.<br><span class="tiny">Start 80.6 kg · first target 75 kg</span></div>`;
+  else{
+    const runs={};
+    for(const w of ws){ if(w.ctx!=='normal'){ runs[w.date]=runs[w.date]||{}; runs[w.date][w.ctx]=w; } }
+    h += ws.map(w=>{
+      let extra='';
+      const pair=runs[w.date];
+      if(w.ctx==='post'&&pair&&pair.pre){
+        const d=w.kg-pair.pre.kg, pctc=d/pair.pre.kg*100;
+        extra = pctc<=-2 ? `<small style="color:var(--serious)">−${Math.abs(pctc).toFixed(1)}% — dehydrated. Drink more next time.</small>`
+              : pctc>=0 ? `<small style="color:var(--crit)">+${pctc.toFixed(1)}% — you gained weight on the run. That's overdrinking; drink less, and mention it to your cardiologist.</small>`
+              : `<small style="color:var(--good)">${pctc.toFixed(1)}% — well judged.</small>`;
+      }
+      return `<div class="entry"><span class="e-nm"><b>${w.kg} kg</b> <span class="tiny">${prettyDate(w.date)}${w.ctx!=='normal'?` · ${w.ctx==='pre'?'before run':'after run'}${w.km?` ${w.km}km`:''}`:''}</span>${extra}</span>
+        <button class="del" onclick="delRec('weights','${w.id}')">×</button></div>`;
+    }).join('');
+  }
+  h += `</div>`;
+
+  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Headaches</h2>
+      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openHeadache()">+ Log headache</button></div>
+    <p class="tiny" style="margin:8px 0 0">Builds the record for your cardiologist. A headache triggered by <i>less</i> exertion than before needs an urgent call, not the next appointment.</p>`;
+  if(!S.headaches.length) h+=`<div class="empty">None logged.</div>`;
+  else h += S.headaches.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`
+      <div class="entry"><span class="e-nm"><b>${prettyDate(x.date)}</b> — severity ${x.sev}/10
+        <small>${x.km?`after ${x.km} km · `:''}${x.notes||''}</small></span>
+        <button class="del" onclick="delRec('headaches','${x.id}')">×</button></div>`).join('');
+  h += `</div>`;
+
+  h += `<div class="card"><h2>Settings</h2>
+    <div class="fld"><label>Anthropic API key — this is what makes the camera work</label>
+      <input type="password" id="ak" value="${S.apiKey||''}" placeholder="sk-ant-…" onchange="S.apiKey=this.value.trim();save()">
+      <p class="tiny" style="margin:6px 0 0"><b>To get one:</b> go to <b>console.anthropic.com</b> → sign in → <b>Settings → API keys</b> → <b>Create Key</b> → copy it and paste above. You'll need a few dollars of credit under Billing. Roughly 1–3 sen per photo.<br><br>Stored only in this browser on this device. It is sent to Anthropic and nowhere else — this page has no server.</p></div>
+    <h3>Daily targets</h3>
+    ${METRICS.map(m=>`<div class="fld"><label>${m.n} (${m.u||'kcal'})</label>
+      <input type="number" value="${S.targets[m.k]}" onchange="S.targets['${m.k}']=+this.value||${DEFAULT_TARGETS[m.k]};save();"></div>`).join('')}
+    <hr>
+    <button class="btn ghost full" onclick="exportData()">Export all data (JSON)</button>
+    <p class="tiny" style="margin:8px 0 0">Your data lives only in this browser. Export before clearing site data or switching phones.</p>
+    <a class="btn ghost full" href="index.html" style="margin-top:10px;text-decoration:none">Open the eating plan</a>
+  </div>`;
+  view.innerHTML = h;
+}
+
+function foodBefore(date){
+  const d1=shiftKey(date,-1), d2=shiftKey(date,-2);
+  const ls=[...logsFor(d2),...logsFor(d1)];
+  if(!ls.length) return '';
+  const pur=ls.reduce((s,l)=>s+(l.pur||0)*(l.qty||1),0);
+  const top=ls.slice().sort((a,b)=>(b.pur*(b.qty||1))-(a.pur*(a.qty||1))).slice(0,2).map(l=>l.name);
+  return `<small style="color:var(--ink2)">48h before: ${Math.round(pur)}mg purine${top.length?` — mostly ${top.join(', ')}`:''}</small>`;
+}
+
+/* ============================================================
+   SHEETS
+   ============================================================ */
+const sheet=document.getElementById('sheet'), sbg=document.getElementById('sbg');
+function openSheet(html){ sheet.innerHTML=`<div class="grab"></div>`+html; sheet.classList.add('on'); sbg.classList.add('on'); }
+function closeSheet(){ sheet.classList.remove('on'); sbg.classList.remove('on'); }
+sbg.onclick=closeSheet;
+
+let pendingQty=1, pendingDish=null, pendingPhoto=null;
+
+function openLog(id){
+  const d=DB.find(x=>x.id===id); if(!d) return;
+  pendingDish=d; pendingQty=1;
+  const tg=S.targets;
+  const s=SWAPS.find(x=>x[0]===id);
+  openSheet(`<h2>${d.n}</h2><p class="muted" style="margin:-4px 0 12px">${d.srv} · <span class="tiny">${d.grade==='M'?'lab-measured':d.grade==='C'?'calculated from ingredients':d.grade==='M/E'?'part measured':'estimated ±30%'}</span></p>
+    ${METRICS.map(m=>{const pct=d[m.k]/tg[m.k]*100;
+      return `<div class="swaprow"><span>${m.n}</span><span style="margin-left:auto;font-variant-numeric:tabular-nums">${fmt(d[m.k],m.k)}${m.u}
+        <span class="pill ${statusOf(pct)}" style="margin-left:6px">${Math.round(pct)}%</span></span></div>`}).join('')}
+    ${s?`<div class="hint"><b>Better option:</b> ${s[2]} — ${(()=>{const to=DB.find(x=>x.id===s[1]);const b=[];
+      if(d.na-to.na>100)b.push(`${Math.round(d.na-to.na)}mg less sodium`);
+      if(d.sat-to.sat>1)b.push(`${fmt(d.sat-to.sat)}g less sat fat`);
+      if(d.sug-to.sug>3)b.push(`${fmt(d.sug-to.sug)}g less sugar`);
+      if(d.pur-to.pur>40)b.push(`${Math.round(d.pur-to.pur)}mg less purine`);
+      return b.join(', ')||'a better profile';})()}.
+      <br><button class="btn ghost" style="margin-top:8px;padding:8px 14px;font-size:13px" onclick="openLog('${s[1]}')">Log that instead</button></div>`:''}
+    <div class="fld" style="margin-top:14px"><label>Portion</label>
+      <div class="qty">${[0.5,1,1.5,2].map(v=>`<button class="${v===1?'on':''}" onclick="setQty(${v},this)">${v===1?'1':v}×</button>`).join('')}</div></div>
+    <button class="btn full" onclick="commitLog()">Add to ${prettyDate(cur).toLowerCase()}</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function setQty(v,el){ pendingQty=v; el.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on')); el.classList.add('on'); }
+function commitLog(){
+  const d=pendingDish; if(!d) return;
+  S.logs.push({id:uid(),date:cur,ts:Date.now(),dishId:d.id,name:d.n,qty:pendingQty,meal:mealOf(Date.now()),
+    kcal:d.kcal,sat:d.sat,na:d.na,sug:d.sug,pur:d.pur, photo:pendingPhoto});
+  S.recent=[d.id,...S.recent.filter(x=>x!==d.id)].slice(0,6);
+  pendingPhoto=null; save(); closeSheet(); tab='today'; render();
+}
+function openCustom(pref){
+  pref=pref||{};
+  openSheet(`<h2>${pref.name?'Check these numbers':'Add manually'}</h2>
+    ${pref.note?`<div class="hint">${pref.note}</div>`:''}
+    <div class="fld"><label>What was it</label><input id="c_n" value="${pref.name||''}" placeholder="e.g. Bak kut teh"></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="c_kcal" value="${pref.kcal??''}"></div>
+      <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="c_sat" value="${pref.sat??''}"></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Sodium mg</label><input type="number" id="c_na" value="${pref.na??''}"></div>
+      <div class="fld" style="flex:1"><label>Sugar g</label><input type="number" step="0.1" id="c_sug" value="${pref.sug??''}"></div>
+    </div>
+    <div class="fld"><label>Purine mg <span class="tiny" style="text-transform:none;letter-spacing:0">— secondary</span></label><input type="number" id="c_pur" value="${pref.pur??''}"></div>
+    <div class="fld"><label>Meal</label><select id="c_meal">${MEAL_ORDER.map(m=>`<option ${((pref.meal)||mealOf(Date.now()))===m?'selected':''}>${m}</option>`).join('')}</select></div>
+    <button class="btn full" onclick="commitCustom()">Add</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function commitCustom(){
+  const v=id=>+document.getElementById(id).value||0;
+  const n=document.getElementById('c_n').value.trim()||'Custom item';
+  S.logs.push({id:uid(),date:cur,ts:Date.now(),dishId:null,name:n,qty:1,
+    meal:document.getElementById('c_meal').value,
+    kcal:v('c_kcal'),sat:v('c_sat'),na:v('c_na'),sug:v('c_sug'),pur:v('c_pur'),photo:pendingPhoto});
+  pendingPhoto=null; save(); closeSheet(); tab='today'; render();
+}
+function delLog(id){ S.logs=S.logs.filter(l=>l.id!==id); save(); render(); }
+function delRec(k,id){ S[k]=S[k].filter(r=>r.id!==id); save(); render(); }
+
+function openFlare(){
+  openSheet(`<h2>Log a gout flare</h2>
+    <div class="fld"><label>Date</label><input type="date" id="f_d" value="${todayKey()}" max="${todayKey()}"></div>
+    <div class="fld"><label>Joint</label><input id="f_j" placeholder="e.g. left big toe, right knee"></div>
+    <div class="fld"><label>How many days did it last</label><input type="number" id="f_days" placeholder="e.g. 4"></div>
+    <div class="fld"><label>Anything in the 48h before</label><textarea id="f_n" rows="2" placeholder="Long run, ramen, travel, missed medication…"></textarea></div>
+    <button class="btn full" onclick="commitFlare()">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function commitFlare(){
+  S.flares.push({id:uid(),date:document.getElementById('f_d').value||todayKey(),
+    joint:document.getElementById('f_j').value.trim(),days:+document.getElementById('f_days').value||0,
+    notes:document.getElementById('f_n').value.trim()});
+  save(); closeSheet(); render();
+}
+function openWeight(){
+  openSheet(`<h2>Log weight</h2>
+    <div class="fld"><label>Date</label><input type="date" id="w_d" value="${todayKey()}" max="${todayKey()}"></div>
+    <div class="fld"><label>Weight (kg)</label><input type="number" step="0.1" id="w_kg" placeholder="80.6" inputmode="decimal"></div>
+    <div class="fld"><label>When</label><select id="w_c">
+      <option value="normal">Normal weigh-in</option>
+      <option value="pre">Immediately before a long run</option>
+      <option value="post">Immediately after a long run</option></select></div>
+    <div class="fld"><label>Run distance (km, if applicable)</label><input type="number" id="w_km" placeholder="30"></div>
+    <button class="btn full" onclick="commitWeight()">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function commitWeight(){
+  const kg=+document.getElementById('w_kg').value;
+  if(!kg){ alert('Enter a weight.'); return; }
+  S.weights.push({id:uid(),date:document.getElementById('w_d').value||todayKey(),kg,
+    ctx:document.getElementById('w_c').value,km:+document.getElementById('w_km').value||0});
+  save(); closeSheet(); render();
+}
+function openHeadache(){
+  openSheet(`<h2>Log a headache</h2>
+    <div class="fld"><label>Date</label><input type="date" id="h_d" value="${todayKey()}" max="${todayKey()}"></div>
+    <div class="fld"><label>Severity (1–10)</label><input type="number" min="1" max="10" id="h_s" placeholder="7"></div>
+    <div class="fld"><label>Run distance beforehand (km)</label><input type="number" id="h_km" placeholder="30"></div>
+    <div class="fld"><label>Notes</label><textarea id="h_n" rows="2" placeholder="How long it lasted, what helped, any chest symptoms…"></textarea></div>
+    <div class="hint bad" style="font-size:12.5px"><b>Go to A&amp;E</b> if it came on like a thunderclap, or with chest pain, breathlessness, fainting, weakness or confusion — or if it took <i>less</i> exertion than usual to trigger.</div>
+    <button class="btn full" onclick="commitHeadache()">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function commitHeadache(){
+  S.headaches.push({id:uid(),date:document.getElementById('h_d').value||todayKey(),
+    sev:+document.getElementById('h_s').value||0,km:+document.getElementById('h_km').value||0,
+    notes:document.getElementById('h_n').value.trim()});
+  save(); closeSheet(); render();
+}
+
+/* ============================================================
+   PHOTO + AI
+   ============================================================ */
+function flashEl(){ return document.getElementById('flash'); }
+function showFlash(html){ const el=flashEl(); if(el) el.innerHTML=html; }
+
+function onPhoto(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=async e=>{
+    const full=e.target.result;
+    pendingPhoto=await shrink(full,150);
+    input.value='';
+    if(!S.apiKey){
+      openCustom({name:'', note:'Photo saved. To have this filled in automatically, add an Anthropic API key in <b>Health → Settings</b>.'});
+      return;
+    }
+    showFlash(`<div class="flash ok"><div class="fh"><span class="spin"></span> Reading the photo…</div>
+      <div class="fs">Identifying the dish, estimating the portion, and working out where it lands against your budgets.</div></div>`);
+    try{
+      const big=await shrink(full,900);
+      const out=await identify(big);
+      const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(Date.now());
+
+      // Confident → log it and get out of the way. Unsure → ask.
+      if(out.confidence==='high'){
+        const entry={id:uid(),date:cur,ts:Date.now(),dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
+          kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur,photo:pendingPhoto};
+        S.logs.push(entry); pendingPhoto=null; save(); render();
+        const tg=S.targets, satPct=Math.round(out.sat/tg.sat*100), naPct=Math.round(out.na/tg.na*100);
+        showFlash(`<div class="flash ${satPct>50||naPct>60?'warn':'ok'}">
+          <div class="fh">Logged — ${out.name} <span class="tiny" style="font-weight:400">(${meal})</span></div>
+          <div class="fs"><b>${fmt(out.sat)}g sat fat</b> (${satPct}% of today) · ${Math.round(out.na)}mg sodium (${naPct}%) · ${Math.round(out.kcal)} kcal</div>
+          ${out.note?`<div class="fs" style="margin-top:6px">${out.note}</div>`:''}
+          <div class="fa"><button onclick="editLog('${entry.id}')">Not right — edit</button>
+            <button onclick="delLog('${entry.id}')">Undo</button></div></div>`);
+      } else {
+        showFlash('');
+        openCustom({...out, meal,
+          note:`<b>Not fully sure about this one.</b> ${out.why||'Check the numbers before saving.'}`});
+      }
+    }catch(err){
+      showFlash('');
+      openCustom({note:`Couldn't reach the AI — ${String(err.message||err).slice(0,110)}. Fill it in manually; the photo is kept.`});
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+function editLog(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  pendingPhoto=l.photo||null;
+  S.logs=S.logs.filter(x=>x.id!==id); save();
+  openCustom({name:l.name,kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur,meal:l.meal,note:'Correcting a logged entry.'});
+  render();
+}
+function shrink(dataUrl,max){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const s=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas'); c.width=img.width*s|0; c.height=img.height*s|0;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      res(c.toDataURL('image/jpeg',0.75));
+    };
+    img.src=dataUrl;
+  });
+}
+async function identify(dataUrl){
+  const b64=dataUrl.split(',')[1];
+  const known=DB.map(d=>`${d.n} (${d.srv}): ${d.kcal}kcal, ${d.sat}g sat, ${d.na}mg Na, ${d.sug}g sugar, ${d.pur}mg purine`).join('\n');
+  const body={
+    model:'claude-opus-4-5-20251101', max_tokens:400,
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+      {type:'text',text:`Identify this meal and estimate its nutrition for ONE serving as shown.
+
+Here is a reference table of dishes this person eats, with values I trust — if the photo matches one, reuse its numbers, scaled to the visible portion:
+${known}
+
+Purine matters here (the person has gout). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
+
+PRIORITY: this person has a coronary calcium score of 91 and LDL 5.2 mmol/L. **Saturated fat is the number that matters most**, then sodium. Purine/gout is secondary. Write the note about saturated fat unless something else is clearly worse.
+
+The local time is ${new Date().toLocaleTimeString()} — so the meal is probably "${mealOf(Date.now())}", but override that if the food obviously says otherwise.
+
+Set confidence to "high" ONLY if you can clearly identify the dish AND judge the portion. Use "low" if the photo is unclear, the dish is ambiguous, several dishes share the frame, or the portion is hard to judge — being wrong is worse than asking.
+
+Reply with ONLY a JSON object, no other text:
+{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
+    ]}]
+  };
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':S.apiKey,
+      'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify(body)
+  });
+  if(!r.ok){ const t=await r.text(); throw new Error(r.status+' '+t.slice(0,120)); }
+  const j=await r.json();
+  const txt=(j.content||[]).map(c=>c.text||'').join('');
+  const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('Unexpected reply');
+  const o=JSON.parse(m[0]);
+  return {name:o.name||'', kcal:Math.round(o.kcal||0), sat:+(o.sat||0), na:Math.round(o.na||0),
+          sug:+(o.sug||0), pur:Math.round(o.pur||0), note:o.note||'',
+          meal:o.meal||'', confidence:(o.confidence==='high'?'high':'low'), why:o.why||''};
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`foodlog-${todayKey()}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+function go(t){ closeSheet(); tab=t; render(); }
+document.querySelectorAll('.nv button').forEach(b=>b.onclick=()=>go(b.dataset.tab));
+document.getElementById('prev').onclick=()=>{ cur=shiftKey(cur,-1); render(); };
+document.getElementById('next').onclick=()=>{ if(cur<todayKey()){ cur=shiftKey(cur,1); render(); } };
+render();
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
