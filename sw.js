@@ -1,5 +1,5 @@
 // Offline cache — so the plan opens at a hawker stall with no signal.
-const CACHE = 'eating-plan-v23';
+const CACHE = 'eating-plan-v27';
 const ASSETS = [
   './',
   './index.html',
