@@ -190,6 +190,9 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .fr{display:flex;gap:11px;align-items:flex-start}
 .fimg{width:58px;height:58px;border-radius:10px;object-fit:cover;flex:none;border:1px solid var(--ring);cursor:pointer}
 .fimg.dim{opacity:.4;filter:grayscale(1)}
+.netline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;
+  background:var(--grid);border-radius:9px;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.netline b{color:var(--ink);font-weight:650}
 .pq{margin-top:11px;padding-top:10px;border-top:1px solid var(--ring)}
 .pql{font-size:12px;font-weight:650;color:var(--ink2);display:block;margin-bottom:7px}
 .pqr{display:flex;gap:5px}
@@ -358,7 +361,7 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='15';
+const BUILD='16';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -408,7 +411,7 @@ function load(){
 }
 function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS},
   apiKey:'', recent:[], ghToken:'', gistId:'', gistUrl:'', lastBackup:0, lastPhotoBackup:0, backupErr:'',
-  photoKB:100, backupPhotoDays:0, provider:'anthropic', model:'', ilmuKey:'', spendUsd:0, shots:0}; }
+  workouts:[], photoKB:100, backupPhotoDays:0, provider:'anthropic', model:'', ilmuKey:'', spendUsd:0, shots:0}; }
 function save(quiet){
   const ok=saveLocal();
   if(!quiet && S.ghToken) scheduleBackup();
@@ -449,6 +452,8 @@ function prettyDate(k){
 }
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 function logsFor(k){ return S.logs.filter(l=>l.date===k); }
+function worksFor(k){ return (S.workouts||[]).filter(w=>w.date===k); }
+function burnFor(k){ return worksFor(k).reduce((s,w)=>s+(+w.kcal||0),0); }
 function totals(k){
   const t={kcal:0,sat:0,na:0,sug:0,pur:0};
   for(const l of logsFor(k)) for(const m in t) t[m]+= (l[m]||0)*(l.qty||1);
@@ -507,11 +512,23 @@ function renderToday(){
       <div id="flash"></div>`;
   }
 
+  const burn=burnFor(cur), works=worksFor(cur);
   for(const g of ['heart','metab','gout']){
     const ms = METRICS.filter(m=>m.grp===g);
     h += `<div class="card ${g==='gout'?'secondary':''}">
       <div class="ghead"><span class="gn">${GRP[g].n}</span><span class="gs">${GRP[g].sub}</span></div>
-      ${ms.map(m=>meterHTML(m,t[m.k],tg[m.k])).join('')}</div>`;
+      ${ms.map(m=>{
+        if(m.k!=='kcal') return meterHTML(m,t[m.k],tg[m.k]);
+        const net=Math.max(0,t.kcal-burn);
+        return meterHTML(m, burn?net:t.kcal, tg.kcal) + (burn? `
+          <div class="netline">
+            <span>Eaten <b>${Math.round(t.kcal)}</b></span><span>−</span>
+            <span>Burned <b>${Math.round(burn)}</b>${works[0]&&works[0].km?` <span class="tiny">(${works.reduce((s,w)=>s+(+w.km||0),0)} km)</span>`:''}</span>
+            <span>=</span><span>Net <b>${Math.round(net)}</b></span>
+          </div>
+          <p class="tiny" style="margin:5px 0 0">Watch estimates usually run high, and your target already assumes ordinary daily movement — so treat the burn as a rough credit, not licence to eat it all back.</p>` : `
+          <button class="btn ghost full" style="margin-top:9px;padding:9px;font-size:13px" onclick="openWorkout()">+ Log today's run</button>`);
+      }).join('')}</div>`;
   }
 
   // insight
@@ -668,6 +685,21 @@ function renderHealth(){
         <small>${f.days?f.days+' days · ':''}${f.notes||''}</small>
         ${foodBefore(f.date)}</span>
         <button class="del" onclick="delRec('flares','${f.id}')">×</button></div>`).join('');
+  h += `</div>`;
+
+  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Runs</h2>
+      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openWorkout()">+ Log run</button></div>
+    <p class="tiny" style="margin:8px 0 0">Distance, calories and average HR from your watch. Calories offset what you've eaten on the Today screen.</p>`;
+  const ws2=(S.workouts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!ws2.length) h+=`<div class="empty">No runs logged.</div>`;
+  else{
+    const wk=ws2.filter(w=>w.date>=shiftKey(todayKey(),-6));
+    const km=wk.reduce((s,w)=>s+(+w.km||0),0), kc=wk.reduce((s,w)=>s+(+w.kcal||0),0);
+    h+=`<div class="hint" style="font-size:12.5px;margin-top:10px"><b>Last 7 days:</b> ${km.toFixed(1)} km · ${Math.round(kc)} kcal across ${wk.length} run${wk.length===1?'':'s'}</div>`;
+    h+=ws2.slice(0,14).map(w=>`<div class="entry"><span class="e-nm"><b>${w.km?w.km+' km':w.kind}</b> <span class="tiny">${prettyDate(w.date)}${w.km?' · '+w.kind:''}</span>
+      <small>${w.kcal?Math.round(w.kcal)+' kcal':''}${w.hr?' · avg HR '+w.hr:''}${w.mins?' · '+w.mins+' min':''}${w.km&&w.mins?' · '+(w.mins/w.km).toFixed(1)+' min/km':''}</small></span>
+      <button class="del" onclick="delRec('workouts','${w.id}')">×</button></div>`).join('');
+  }
   h += `</div>`;
 
   h += `<div class="card"><div class="row sp"><h2 style="margin:0">Weight</h2>
@@ -828,6 +860,7 @@ function flashFor(id){
         <div class="fh">Logged — ${l.name} <span class="tiny" style="font-weight:400">(${l.meal||''})</span></div>
         ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${l.seen}</div>`:''}
         ${l.matched?`<div class="fs" style="color:var(--good)">✓ Matched to measured data for ${l.matched}</div>`:''}
+        ${(l.items&&l.items.length>1)?`<div class="fs" style="color:var(--muted)">${l.items.length} components: ${l.items.map(i=>i.name).join(' · ')}</div>`:''}
       </div></div>
     <div class="pq"><span class="pql">How much did you actually eat?</span>
       <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>
@@ -950,6 +983,30 @@ async function testConn(){
       <div class="fa"><button onclick="S.provider='anthropic';S.model='';save();render();">Switch to Claude</button></div></div>`);
   }
 }
+function openWorkout(){
+  openSheet(`<h2>Log a run</h2>
+    <p class="muted" style="margin:-4px 0 14px">Straight off your watch — it feeds the net calorie line on Today.</p>
+    <div class="fld"><label>Date</label><input type="date" id="wk_d" value="${cur}" max="${todayKey()}"></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Distance (km)</label><input type="number" step="0.1" id="wk_km" placeholder="12.4" inputmode="decimal"></div>
+      <div class="fld" style="flex:1"><label>Calories burned</label><input type="number" id="wk_kcal" placeholder="820" inputmode="numeric"></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Average HR</label><input type="number" id="wk_hr" placeholder="148" inputmode="numeric"></div>
+      <div class="fld" style="flex:1"><label>Duration (min)</label><input type="number" id="wk_min" placeholder="68" inputmode="numeric"></div></div>
+    <div class="fld"><label>Type</label><select id="wk_kind">
+      <option>Easy run</option><option>Long run</option><option>Intervals / tempo</option><option>Race</option><option>Other</option></select></div>
+    <div class="hint" style="font-size:12.5px">On long runs, weigh yourself before and after — that's what separates dehydration from overdrinking behind your headaches. Log it under Weight.</div>
+    <button class="btn full" onclick="commitWorkout()">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function commitWorkout(){
+  const v=i=>+document.getElementById(i).value||0;
+  const kc=v('wk_kcal');
+  if(!kc && !v('wk_km')){ alert('Enter at least distance or calories.'); return; }
+  S.workouts.push({id:uid(),date:document.getElementById('wk_d').value||todayKey(),
+    kind:document.getElementById('wk_kind').value, km:v('wk_km'), kcal:kc, hr:v('wk_hr'), mins:v('wk_min')});
+  save(); closeSheet(); render();
+}
 function openFlare(){
   openSheet(`<h2>Log a gout flare</h2>
     <div class="fld"><label>Date</label><input type="date" id="f_d" value="${todayKey()}" max="${todayKey()}"></div>
@@ -1059,7 +1116,7 @@ function onPhoto(input){
       // Confident → log it and get out of the way. Unsure → ask.
       if(out.confidence==='high'){
         const entry={id:uid(),date:cur,ts:Date.now(),dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
-          seen:out.portionSeen||'', matched:out.matched||'', hasPhoto:!!pendingThumb,
+          seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], hasPhoto:!!pendingThumb,
           base:{kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur},
           kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur};
         await commitPhoto(entry.id);
@@ -1105,11 +1162,81 @@ async function viewPhoto(id){
 function dropPhoto(id){ dropPhotoOnly(id); }
 async function editLog(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
-  const rec=await IDB.get(id);
-  if(rec){ pendingThumb=rec.thumb; pendingFull=rec.full; pendingPhoto=rec.thumb; }
-  S.logs=S.logs.filter(x=>x.id!==id); delete THUMBS[id]; await IDB.del(id); save();
-  openCustom({name:l.name,kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur,meal:l.meal,note:'Correcting a logged entry.'});
-  render();
+  editing=id;                                   // photo stays put in IndexedDB
+  openEdit(l);
+}
+let editing=null;
+
+function openEdit(l){
+  const items=(l.items&&l.items.length)? l.items : null;
+  openSheet(`<h2>Fix this entry</h2>
+    <div class="fr" style="margin:-4px 0 12px">
+      ${THUMBS[l.id]?`<img class="fimg" src="${THUMBS[l.id]}" alt="">`:''}
+      <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${l.seen||'Logged '+prettyDate(l.date)}</div></div>
+    </div>
+    <div class="fld"><label>What was it, really?</label>
+      <textarea id="e_n" rows="2" placeholder="e.g. leftover pork bone stew from last night, about half a bowl">${l.name||''}</textarea>
+      <p class="tiny" style="margin:6px 0 0">Describe it however you like — portion, ingredients, how it was cooked. The more you say, the better the re-estimate.</p></div>
+    <button class="btn full" onclick="reEstimate('${l.id}')" ${THUMBS[l.id]?'':'disabled style="opacity:.5"'}>Re-estimate from this description</button>
+    <p class="tiny" style="margin:7px 0 14px;text-align:center">${THUMBS[l.id]?`Sends your photo back with your words · ${(modelCost()*470).toFixed(1)} sen`:'No photo stored, so numbers must be entered by hand'}</p>
+    <div id="ebreak">${items?breakdownHTML(items):''}</div>
+    <hr>
+    <p class="tiny" style="margin:0 0 10px">Or set the numbers yourself:</p>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="e_kcal" value="${Math.round(l.kcal)}"></div>
+      <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="e_sat" value="${l.sat}"></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Sodium mg</label><input type="number" id="e_na" value="${Math.round(l.na)}"></div>
+      <div class="fld" style="flex:1"><label>Sugar g</label><input type="number" step="0.1" id="e_sug" value="${l.sug}"></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Purine mg</label><input type="number" id="e_pur" value="${Math.round(l.pur)}"></div>
+      <div class="fld" style="flex:1"><label>Meal</label><select id="e_meal">${MEAL_ORDER.map(m=>`<option ${(l.meal||mealOf(l.ts))===m?'selected':''}>${m}</option>`).join('')}</select></div></div>
+    <button class="btn full" onclick="saveEdit('${l.id}')">Save</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+}
+function breakdownHTML(items){
+  return `<div class="hint" style="font-size:12.5px"><b>Broken down as:</b>
+    ${items.map(i=>`<div class="swaprow" style="padding:5px 0;border:0"><span>${i.name}</span>
+      <span class="sv" style="color:var(--ink2)">${Math.round(i.kcal||0)} kcal · ${(+i.sat||0).toFixed(1)}g sat</span></div>`).join('')}</div>`;
+}
+async function reEstimate(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  const hint=document.getElementById('e_n').value.trim();
+  if(!hint){ alert('Describe what it was first.'); return; }
+  if(!activeKey()){ alert('Connect a provider in Settings first.'); return; }
+  const btn=event&&event.target; if(btn){ btn.textContent='Re-estimating…'; btn.disabled=true; }
+  try{
+    const rec=await IDB.get(id);
+    const img=rec&&(rec.full||rec.thumb);
+    if(!img) throw new Error('No photo stored for this entry.');
+    const out=await identify(img, hint);
+    if(out.notFood) throw new Error('It still cannot see food in that photo.');
+    S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
+    const mt=matchDish(out.name);
+    if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.matched=d.n; }
+    for(const [k,el] of [['kcal','e_kcal'],['sat','e_sat'],['na','e_na'],['sug','e_sug'],['pur','e_pur']])
+      document.getElementById(el).value = (k==='sat'||k==='sug')? (+out[k]).toFixed(1) : Math.round(out[k]);
+    document.getElementById('e_n').value = out.name||hint;
+    if(out.meal) { const s=document.getElementById('e_meal'); if(s) s.value=out.meal; }
+    l.pending={seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], note:out.note||''};
+    document.getElementById('ebreak').innerHTML =
+      (out.items&&out.items.length? breakdownHTML(out.items) : '') +
+      `<div class="hint good" style="font-size:12.5px"><b>Re-estimated.</b> ${out.portionSeen||''}${out.matched?` · matched to measured data for ${out.matched}`:''}${out.note?'<br>'+out.note:''}</div>`;
+  }catch(e){
+    document.getElementById('ebreak').innerHTML=`<div class="hint bad" style="font-size:12.5px">Couldn't re-estimate — ${String(e.fix||e.message||e).slice(0,140)}</div>`;
+  }
+  if(btn){ btn.textContent='Re-estimate from this description'; btn.disabled=false; }
+}
+function saveEdit(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  const v=i=>+document.getElementById(i).value||0;
+  l.name=document.getElementById('e_n').value.trim()||l.name;
+  l.meal=document.getElementById('e_meal').value;
+  l.kcal=v('e_kcal'); l.sat=v('e_sat'); l.na=v('e_na'); l.sug=v('e_sug'); l.pur=v('e_pur');
+  l.base={kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur}; l.frac=1;
+  if(l.pending){ l.seen=l.pending.seen||l.seen; l.matched=l.pending.matched||''; l.items=l.pending.items||[]; delete l.pending; }
+  l.auto=false; editing=null;
+  save(); closeSheet(); render(); showFlash(flashFor(id));
 }
 function shrink(dataUrl,max,quality){
   return new Promise(res=>{
@@ -1137,7 +1264,7 @@ async function shrinkToBudget(dataUrl, budgetKB, startPx){
   }
   return out;
 }
-async function identify(dataUrl){
+async function identify(dataUrl, hint){
   const b64=dataUrl.split(',')[1];
   const P=prov();
   const body={
@@ -1147,6 +1274,9 @@ async function identify(dataUrl){
       {type:'text',text:`Identify this meal and estimate its nutrition.
 
 The person is Malaysian-Chinese, in Kuala Lumpur, and eats mostly Chinese, Japanese and Western food plus local hawker dishes. Name the dish the way a Malaysian would — "char kuey teow", "wantan mee kon lou", "siew yok rice", "nasi lemak", not a generic description.
+${hint? `\n**THE PERSON HAS TOLD YOU WHAT THIS IS: "${hint}"**\nTrust that completely over your own reading of the photo — they ate it, you didn't. Use the photo only to judge how much is there. If their description mentions a quantity ("half a bowl", "two pieces"), honour it and set confidence high.\n` : ''}
+${recentMealContext()}
+**If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items" with its own numbers, and make the top-level kcal/sat/na/sug/pur the SUM of them. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
 
 Purine matters a little (they have gout, but it is secondary). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
 
@@ -1162,7 +1292,7 @@ Set confidence to "high" ONLY if you can clearly identify the dish AND judge the
 {"notFood":true,"saw":"what is actually in the photo, 3-6 words"}
 
 Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
-{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
+{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
     ]}]
   };
   let r;
@@ -1198,7 +1328,7 @@ Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
   if(o.notFood) return {notFood:true, saw:o.saw||''};
   return {name:o.name||'', kcal:Math.round(o.kcal||0), sat:+(o.sat||0), na:Math.round(o.na||0),
           sug:+(o.sug||0), pur:Math.round(o.pur||0), note:o.note||'',
-          meal:o.meal||'', portionSeen:o.portionSeen||'',
+          meal:o.meal||'', portionSeen:o.portionSeen||'', items:Array.isArray(o.items)?o.items:[],
           confidence:(o.confidence==='high'?'high':'low'), why:o.why||''};
 }
 /* The model names the dish; our own measured Malaysian data supplies the
@@ -1211,6 +1341,22 @@ const SPELL=[[/k[uwoa]{1,2}[ae]?y?\s*teow/g,'kwayteow'],[/kue?h/g,'kuih'],[/mee|
   [/bee\s*hoon|bihun|mee\s*hoon/g,'beehoon'],[/char\s*siu|char\s*siew|chashu/g,'charsiew'],
   [/siu\s*yuk|siew\s*yok|roast\s*pork\s*belly/g,'siewyok'],[/wan\s*ton|wantan|wonton/g,'wantan'],
   [/nasi\s*lemak/g,'nasilemak'],[/kon\s*lo[uh]?|dry\s*toss/g,'dry'],[/tonkotsu|ton\s*kotsu/g,'tonkotsu']];
+/* Leftovers are common — if last night's stew shows up at breakfast, the model
+   should recognise it rather than start from scratch. Cheap: names only. */
+function recentMealContext(){
+  const cutoff=Date.now()-3*864e5;
+  const seen=[], names=new Set();
+  for(const l of S.logs.slice().sort((a,b)=>b.ts-a.ts)){
+    if(l.ts<cutoff) break;
+    if(names.has(l.name)) continue;
+    names.add(l.name);
+    const hrs=Math.round((Date.now()-l.ts)/36e5);
+    seen.push(`${l.name} (${hrs<24?hrs+'h ago':Math.round(hrs/24)+'d ago'})`);
+    if(seen.length>=8) break;
+  }
+  if(!seen.length) return '';
+  return `\nRecently eaten, most recent first — they often finish leftovers, so if the photo resembles one of these it probably IS that dish:\n${seen.join(' · ')}\n`;
+}
 function normalise(s){
   let t=(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   for(const [re,to] of SPELL) t=t.replace(re,to);
@@ -1299,7 +1445,7 @@ async function ghErr(r){
 
 function splitState(){
   const data={v:2, logs:S.logs.map(l=>{const c={...l}; delete c.photo; return c;}),
-              flares:S.flares, weights:S.weights, headaches:S.headaches,
+              flares:S.flares, weights:S.weights, headaches:S.headaches, workouts:S.workouts||[],
               targets:S.targets, recent:S.recent, savedAt:Date.now()};
   return {data};                               // apiKey and ghToken never leave the phone
 }
@@ -1397,7 +1543,7 @@ async function restoreBackup(){
     const keepTok=S.ghToken, keepKey=S.apiKey, keepId=S.gistId, keepUrl=S.gistUrl;
     S=Object.assign(blank(), {
       logs:(data.logs||[]),
-      flares:data.flares||[], weights:data.weights||[], headaches:data.headaches||[],
+      flares:data.flares||[], weights:data.weights||[], headaches:data.headaches||[], workouts:data.workouts||[],
       targets:Object.assign({...DEFAULT_TARGETS}, data.targets||{}), recent:data.recent||[],
       ghToken:keepTok, apiKey:keepKey, gistId:keepId, gistUrl:keepUrl, lastBackup:Date.now()
     });
