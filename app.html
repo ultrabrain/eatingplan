@@ -431,7 +431,7 @@ function slotSuggestion(ts,dateKey){
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='26';
+const BUILD='27';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -489,11 +489,12 @@ function migrate(s){
   let fixed=0;
   for(const l of (s.logs||[])){
     if(!Array.isArray(l.items) || !l.items.length) continue;
+    let touched=0;                       // THIS entry — not a running total.
     l.items=l.items.map(i=>{
       if(i && i.per && i.eaten!=null) return i;             // already per-unit
       const q=Math.max(0.01, +i.qty || +i.present || 1);
       const d=v=>{ const n=+v; return isFinite(n) ? +(n/q).toFixed(3) : 0; };
-      fixed++;
+      fixed++; touched++;
       // A nameless row keeps its calories under the label "Item" rather than
       // being dropped. normItems() discards nameless rows because that is a
       // fresh AI reply we can re-ask for; this is the user's saved history, and
@@ -504,7 +505,12 @@ function migrate(s){
                              sug:d(i.sug),pur:d(i.pur),fru:d(i.fru)},
         src:i.src||'saved'};
     }).filter(i=>i.name);
-    if(fixed) applyItems(l);   // totals recomputed from components, as everywhere else
+    // Recompute ONLY entries this function actually converted. An entry already
+    // in per-unit shape is left exactly as stored, even if its totals disagree
+    // with its components — that is the old override-bug damage, and repairing
+    // it is "Check my entries for errors", which shows you the change first.
+    // Loading the app must never silently rewrite a number you logged.
+    if(touched) applyItems(l);
   }
   if(fixed) console.info('migrated '+fixed+' legacy item rows to per-unit');
   return s;
