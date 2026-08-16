@@ -198,6 +198,7 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .pqr{display:flex;gap:5px}
 .pqr button{flex:1;padding:8px 2px;border-radius:9px;background:var(--raised);border:1px solid var(--ring);font-size:12.5px;font-weight:600}
 .pqr button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.lnk{color:var(--blue);font-weight:650;text-decoration:underline;padding:0 0 0 4px;font-size:12.5px}
 .conf{font-size:11px;font-weight:650;padding:2px 7px;border-radius:11px;background:var(--grid);color:var(--ink2);margin-left:6px}
 </style>
 </head>
@@ -361,7 +362,7 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='16';
+const BUILD='17';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -507,8 +508,12 @@ function renderToday(){
       : `<button class="shoot setup" onclick="openKey()">
           <span class="cico">⚙</span><span><b>Set up the camera — 2 minutes</b>
           <small>Add an API key once and photos log themselves. Tap here.</small></span></button>
-         <button class="btn ghost full" style="margin-bottom:12px" onclick="document.getElementById('cam').click()">Take a photo anyway (you fill in the numbers)</button>`;
-    h += `<input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
+         <button class="btn ghost full" style="margin-bottom:8px" onclick="document.getElementById('cam').click()">Take a photo anyway (you fill in the numbers)</button>
+         <button class="btn ghost full" style="margin-bottom:12px" onclick="document.getElementById('lib').click()">Choose from your photos</button>`;
+    h += `<button class="btn ghost full" style="margin-bottom:12px" onclick="document.getElementById('lib').click()">
+        Choose from your photos</button>
+      <input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
+      <input type="file" id="lib" accept="image/*" style="display:none" onchange="onPhoto(this,true)">
       <div id="flash"></div>`;
   }
 
@@ -821,6 +826,7 @@ function closeSheet(){ sheet.classList.remove('on'); sbg.classList.remove('on');
 sbg.onclick=closeSheet;
 
 let pendingQty=1, pendingDish=null, pendingPhoto=null, pendingThumb=null, pendingFull=null;
+let shotTs=Date.now(), shotDate=todayKey(), shotFromLibrary=false;
 
 function clearPending(){ pendingPhoto=null; pendingThumb=null; pendingFull=null; }
 async function commitPhoto(id){
@@ -842,6 +848,11 @@ async function deleteEntry(id){
 /* The AI can tell what a dish is. It cannot know how much of it you ate.
    So it reports the whole portion in frame, and you set the fraction. */
 const PORTIONS=[[1,'All'],[0.75,'¾'],[0.5,'Half'],[0.25,'¼'],[0.125,'A taste']];
+function moveToToday(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  l.date=todayKey(); l.ts=Date.now(); l.meal=mealOf(l.ts);
+  save(); render(); showFlash(flashFor(id));
+}
 function setPortion(id,f){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
   const b=l.base||{kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur};
@@ -864,6 +875,8 @@ function flashFor(id){
       </div></div>
     <div class="pq"><span class="pql">How much did you actually eat?</span>
       <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>
+    ${l.date!==todayKey()?`<div class="fs" style="margin-top:7px;color:var(--serious)">Logged to <b>${prettyDate(l.date)}</b>, from the photo's own timestamp.
+      <button class="lnk" onclick="moveToToday('${id}')">Move to today</button></div>`:''}
     <div class="fs" style="margin-top:9px"><b>${fmt(l.sat)}g sat fat</b> (${satPct}% of today) · ${Math.round(l.na)}mg sodium (${naPct}%) · ${Math.round(l.kcal)} kcal</div>
     <div class="fa"><button onclick="editLog('${id}')">Edit</button>
       <button onclick="deleteEntry('${id}')">Delete</button></div></div>`;
@@ -922,7 +935,7 @@ function commitCustom(){
   const v=id=>+document.getElementById(id).value||0;
   const n=document.getElementById('c_n').value.trim()||'Custom item';
   const eid=uid();
-  S.logs.push({id:eid,date:cur,ts:Date.now(),dishId:null,name:n,qty:1,hasPhoto:!!pendingThumb,
+  S.logs.push({id:eid,date:(shotFromLibrary?shotDate:cur),ts:shotTs,dishId:null,name:n,qty:1,hasPhoto:!!pendingThumb,
     meal:document.getElementById('c_meal').value,
     kcal:v('c_kcal'),sat:v('c_sat'),na:v('c_na'),sug:v('c_sug'),pur:v('c_pur')});
   commitPhoto(eid);
@@ -1064,8 +1077,13 @@ function commitHeadache(){
 function flashEl(){ return document.getElementById('flash'); }
 function showFlash(html){ const el=flashEl(); if(el) el.innerHTML=html; }
 
-function onPhoto(input){
+function onPhoto(input, fromLibrary){
   const f=input.files&&input.files[0]; if(!f) return;
+  /* A picked photo is usually an earlier meal, so trust its timestamp for both
+     the date and the meal slot rather than assuming "now". */
+  shotTs = (fromLibrary && f.lastModified) ? f.lastModified : Date.now();
+  shotDate = todayKey(new Date(shotTs));
+  shotFromLibrary = !!fromLibrary;
   const r=new FileReader();
   r.onload=async e=>{
     const full=e.target.result;
@@ -1103,7 +1121,8 @@ function onPhoto(input){
         return;
       }
 
-      const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(Date.now());
+      const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(shotTs);
+      const logDate = shotFromLibrary ? shotDate : cur;
       const mt = matchDish(out.name);
       if(mt){                                  // swap the estimate for measured data
         const d=mt.dish;
@@ -1115,7 +1134,7 @@ function onPhoto(input){
 
       // Confident → log it and get out of the way. Unsure → ask.
       if(out.confidence==='high'){
-        const entry={id:uid(),date:cur,ts:Date.now(),dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
+        const entry={id:uid(),date:logDate,ts:shotTs,dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
           seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], hasPhoto:!!pendingThumb,
           base:{kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur},
           kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur};
@@ -1282,7 +1301,7 @@ Purine matters a little (they have gout, but it is secondary). Rough guide, mg p
 
 PRIORITY: this person has a coronary calcium score of 91 and LDL 5.2 mmol/L. **Saturated fat is the number that matters most**, then sodium. Purine/gout is secondary. Write the note about saturated fat unless something else is clearly worse.
 
-The local time is ${new Date().toLocaleTimeString()} — so the meal is probably "${mealOf(Date.now())}", but override that if the food obviously says otherwise.
+The photo was taken at ${new Date(shotTs).toLocaleString()} — so the meal is probably "${mealOf(shotTs)}", but override that if the food obviously says otherwise.
 
 **Report the nutrition for the ENTIRE portion visible in the photo** — the whole bowl, the whole plate. Do not try to guess how much of it the person will actually eat; they set that themselves afterwards. In "portionSeen", describe what you measured in plain words with a rough weight, e.g. "a full bowl, roughly 200g of cantaloupe" or "one plate, about 350g".
 
