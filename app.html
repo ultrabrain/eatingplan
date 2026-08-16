@@ -198,6 +198,9 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .pqr{display:flex;gap:5px}
 .pqr button{flex:1;padding:8px 2px;border-radius:9px;background:var(--raised);border:1px solid var(--ring);font-size:12.5px;font-weight:600}
 .pqr button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chipbtn{font-size:12px;font-weight:600;padding:5px 10px;border-radius:14px;border:1px solid var(--ring);
+  background:var(--surface);color:var(--ink2);margin:6px 5px 0 0}
+.chipbtn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .lnk{color:var(--blue);font-weight:650;text-decoration:underline;padding:0 0 0 4px;font-size:12.5px}
 .conf{font-size:11px;font-weight:650;padding:2px 7px;border-radius:11px;background:var(--grid);color:var(--ink2);margin-left:6px}
 </style>
@@ -303,7 +306,7 @@ const DB = [
 {id:'kosong',    n:'Air kosong / tea',  g:'drink', srv:'—',    kcal:0,   sat:0,  na:0,  sug:0,  pur:0, grade:'M'},
 ];
 
-const GROUPS = {bfast:'Breakfast', lunch:'Lunch', wknd:'Weekend', home:'Home', drink:'Drinks'};
+const GROUPS = {learned:'Your foods', bfast:'Breakfast', lunch:'Lunch', wknd:'Weekend', home:'Home', drink:'Drinks'};
 
 /* Swap suggestions: [fromId, toId, reason] */
 const SWAPS = [
@@ -353,16 +356,39 @@ const GRP = {
   metab:{n:'Weight & glucose', sub:'Prediabetic at 5.8%'},
   gout:{n:'Gout', sub:'Worth watching, not worth optimising around'}
 };
+/* Eating doesn't fall neatly into three meals — especially around training.
+   Time gives a sensible default; the workout slots are chosen deliberately. */
 function mealOf(ts){
-  const h=new Date(ts).getHours();
-  return h<11?'Breakfast':h<16?'Lunch':h<22?'Dinner':'Late snack';
+  const d=new Date(ts), m=d.getHours()*60+d.getMinutes();
+  if(m<630)  return 'Breakfast';        // before 10:30
+  if(m<690)  return 'Morning snack';    // 10:30–11:30
+  if(m<870)  return 'Lunch';            // 11:30–14:30
+  if(m<1050) return 'Afternoon snack';  // 14:30–17:30
+  if(m<1290) return 'Dinner';           // 17:30–21:30
+  return 'Supper';
 }
-const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
+const MEAL_ORDER=['Pre-workout','During workout','Post-workout','Breakfast','Morning snack',
+                  'Lunch','Afternoon snack','Dinner','Supper'];
+const WORKOUT_SLOTS=['Pre-workout','During workout','Post-workout'];
+
+/* If a run is logged that day, offer the training slots first — most people
+   fuelling a session are logging within a couple of hours of it. */
+function slotSuggestion(ts,dateKey){
+  const ws=(S.workouts||[]).filter(w=>w.date===dateKey);
+  if(!ws.length) return null;
+  const w=ws[0];
+  if(!w.time) return {w, slot:null};
+  const wStart=tsFrom(dateKey,w.time), wEnd=wStart+(+w.mins||60)*60000;
+  if(ts>=wStart-2*36e5 && ts<wStart) return {w, slot:'Pre-workout'};
+  if(ts>=wStart && ts<=wEnd)          return {w, slot:'During workout'};
+  if(ts>wEnd && ts<=wEnd+2*36e5)      return {w, slot:'Post-workout'};
+  return {w, slot:null};
+}
 
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='18';
+const BUILD='21';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -412,7 +438,7 @@ function load(){
 }
 function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS},
   apiKey:'', recent:[], ghToken:'', gistId:'', gistUrl:'', lastBackup:0, lastPhotoBackup:0, backupErr:'',
-  workouts:[], photoKB:100, backupPhotoDays:0, provider:'anthropic', model:'', ilmuKey:'', spendUsd:0, shots:0}; }
+  workouts:[], learned:[], photoKB:100, backupPhotoDays:0, provider:'anthropic', model:'', ilmuKey:'', spendUsd:0, shots:0}; }
 function save(quiet){
   const ok=saveLocal();
   if(!quiet && S.ghToken) scheduleBackup();
@@ -451,6 +477,14 @@ function prettyDate(k){
   const [y,m,d]=k.split('-').map(Number);
   return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
 }
+function timeStr(ts){ const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function tsFrom(dateStr, timeStr){
+  const [y,m,d]=(dateStr||todayKey()).split('-').map(Number);
+  const [hh,mm]=(timeStr||'12:00').split(':').map(Number);
+  return new Date(y,m-1,d,hh||0,mm||0).getTime();
+}
+/* When you're looking at an earlier day, default to that day rather than today. */
+function defaultTs(){ return cur===todayKey() ? Date.now() : tsFrom(cur, timeStr(Date.now())); }
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 function logsFor(k){ return S.logs.filter(l=>l.date===k); }
 function worksFor(k){ return (S.workouts||[]).filter(w=>w.date===k); }
@@ -514,6 +548,7 @@ function renderToday(){
         Choose from your photos</button>
       <input type="file" id="cam" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
       <input type="file" id="lib" accept="image/*" style="display:none" onchange="onPhoto(this,true)">
+      <button class="btn ghost full" style="margin-bottom:12px" onclick="openDescribe()">Type what you ate instead</button>
       <div id="flash"></div>`;
   }
 
@@ -597,7 +632,10 @@ function swapHint(ls){
 }
 
 function renderAdd(){
-  let h = `<p class="tiny" style="margin:0 0 12px">Fallback for when the camera can't help — offline, or a dish the AI won't know.</p>
+  let h = `<div class="card">
+    <button class="btn full" onclick="openDescribe()">Describe what you ate</button>
+    <p class="tiny" style="margin:8px 0 0;text-align:center">Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
+  </div>
   <div class="card">
     <input class="search" id="q" placeholder="Search your dishes…" value="${q}" oninput="q=this.value;renderDishList()">
     <div class="chips" id="chips">
@@ -613,9 +651,10 @@ function renderAdd(){
 function renderDishList(){
   const el = document.getElementById('dishlist'); if(!el) return;
   const tg=S.targets;
-  let list = DB.filter(d=> (filter==='all'||d.g===filter) && (!q || d.n.toLowerCase().includes(q.toLowerCase())));
+  let list = allFoods().filter(d=> (filter==='all'||d.g===filter) && (!q || d.n.toLowerCase().includes(q.toLowerCase())));
+  if(filter==='learned') list.sort((a,b)=>(b.uses||0)-(a.uses||0));
   if(filter==='all' && !q && S.recent.length){
-    const rec = S.recent.map(id=>DB.find(d=>d.id===id)).filter(Boolean);
+    const rec = S.recent.map(id=>allFoods().find(d=>d.id===id)).filter(Boolean);
     list = [...rec, ...list.filter(d=>!S.recent.includes(d.id))];
   }
   if(!list.length){ el.innerHTML=`<div class="empty">No match.<br><br><button class="btn ghost" onclick="openCustom()">Add it manually</button></div>`; return; }
@@ -624,8 +663,8 @@ function renderDishList(){
     const c = worst>60?'var(--crit)':worst>=35?'var(--warn)':'var(--good)';
     return `<button class="dish" onclick="openLog('${d.id}')">
       <span class="flag" style="background:${c}"></span>
-      <span class="info"><span class="nm">${d.n}</span>
-        <span class="sub">${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na · ${d.pur}mg pur</span></span>
+      <span class="info"><span class="nm">${d.n}${d.g==='learned'?' <span class="pill ok" style="font-size:9.5px;padding:1px 5px">saved</span>':''}</span>
+        <span class="sub">${d.srv?d.srv+' · ':''}${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na${d.uses>1?` · used ${d.uses}×`:''}</span></span>
       <span class="add">+</span></button>`;
   }).join('') + `<button class="btn ghost full" style="margin-top:12px" onclick="openCustom()">Something else</button>`;
 }
@@ -755,6 +794,7 @@ function renderHealth(){
         <button class="btn ghost" style="padding:8px 14px;font-size:13px;margin-left:auto" onclick="openKey()">${activeKey()?'Change':'Set up'}</button></div>
       <p class="tiny" style="margin:7px 0 0">${prov().keyWhere}</p></div>
     <button class="btn ghost full" onclick="testConn()" style="margin-bottom:10px">Test connection</button>
+    <div class="swaprow"><span>Foods learned</span><span class="sv" style="color:var(--ink2)">${(S.learned||[]).length}</span></div>
     <div class="swaprow"><span>Photos analysed</span><span class="sv" style="color:var(--ink2)">${S.shots||0}</span></div>
     <div class="swaprow"><span>Estimated spend</span><span class="sv" style="color:var(--ink2)">~RM ${((S.spendUsd||0)*4.7).toFixed(2)}</span></div>
     <p class="tiny" style="margin:8px 0 0">Estimate only — check your provider's dashboard for the real figure. Your own measured dish data is used whenever the photo matches something in the plan, which costs nothing and beats a guess.</p>
@@ -871,6 +911,8 @@ function flashFor(id){
         <div class="fh">Logged — ${l.name} <span class="tiny" style="font-weight:400">(${l.meal||''})</span></div>
         ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${l.seen}</div>`:''}
         ${l.matched?`<div class="fs" style="color:var(--good)">✓ Matched to measured data for ${l.matched}</div>`:''}
+        ${l.free?`<div class="fs" style="color:var(--good)">✓ Built from your saved foods — no AI, no cost</div>`:''}
+        ${l.meal==='During workout'?`<div class="fs" style="color:var(--muted)">Taken during exercise — working muscle clears this sugar far better than sitting at a desk would.</div>`:''}
         ${(l.items&&l.items.length>1)?`<div class="fs" style="color:var(--muted)">${l.items.length} components: ${l.items.map(i=>i.name).join(' · ')}</div>`:''}
       </div></div>
     <div class="pq"><span class="pql">How much did you actually eat?</span>
@@ -883,7 +925,7 @@ function flashFor(id){
 }
 
 function openLog(id){
-  const d=DB.find(x=>x.id===id); if(!d) return;
+  const d=allFoods().find(x=>x.id===id); if(!d) return;
   pendingDish=d; pendingQty=1;
   const tg=S.targets;
   const s=SWAPS.find(x=>x[0]===id);
@@ -903,11 +945,16 @@ function openLog(id){
     <button class="btn full" onclick="commitLog()">Add to ${prettyDate(cur).toLowerCase()}</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
+function forgetFood(id){
+  if(!confirm('Remove this from your saved foods? Past entries stay.')) return;
+  S.learned=S.learned.filter(x=>x.id!==id); save(); closeSheet(); render();
+}
 function setQty(v,el){ pendingQty=v; el.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on')); el.classList.add('on'); }
 function commitLog(){
   const d=pendingDish; if(!d) return;
   const did=uid();
-  S.logs.push({id:did,date:cur,ts:Date.now(),dishId:d.id,name:d.n,qty:pendingQty,meal:mealOf(Date.now()),
+  const dts=defaultTs();
+  S.logs.push({id:did,date:cur,ts:dts,dishId:d.id,name:d.n,qty:pendingQty,meal:mealOf(dts),
     hasPhoto:!!pendingThumb, kcal:d.kcal,sat:d.sat,na:d.na,sug:d.sug,pur:d.pur});
   commitPhoto(did);
   S.recent=[d.id,...S.recent.filter(x=>x!==d.id)].slice(0,6);
@@ -996,6 +1043,116 @@ async function testConn(){
       <div class="fa"><button onclick="S.provider='anthropic';S.model='';save();render();">Switch to Claude</button></div></div>`);
   }
 }
+function openDescribe(prefill){
+  openSheet(`<h2>Describe what you ate</h2>
+    <p class="muted" style="margin:-4px 0 12px">No photo needed. Write it however you'd say it — quantities help.</p>
+    <div class="fld"><textarea id="d_t" rows="3" placeholder="2 bottles of 500ml 100 Plus, 2 bananas and a glass of milk">${prefill||''}</textarea></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1.2"><label>Date</label>
+        <input type="date" id="d_date" value="${todayKey(new Date(defaultTs()))}" max="${todayKey()}" onchange="syncMeal()"></div>
+      <div class="fld" style="flex:1"><label>Time</label>
+        <input type="time" id="d_time" value="${timeStr(defaultTs())}" onchange="syncMeal()"></div>
+    </div>
+    <div id="d_wk"></div>
+    <div class="fld"><label>When / what for</label><select id="d_meal" onchange="this.dataset.touched=1">${MEAL_ORDER.map(m=>`<option ${mealOf(defaultTs())===m?'selected':''}>${m}</option>`).join('')}</select>
+      <p class="tiny" style="margin:6px 0 0">Follows the clock unless you change it. Fuel for a session? Pick one of the workout options.</p></div>
+    <div id="dprev"></div>
+    <button class="btn full" onclick="describeGo()">Work it out</button>
+    <p class="tiny" style="margin:7px 0 0;text-align:center">Anything already in your food list is free. Only new foods cost ${(modelCost()*470).toFixed(1)} sen.</p>
+    <button class="btn ghost full" style="margin-top:10px" onclick="closeSheet()">Cancel</button>`);
+  setTimeout(()=>{syncMeal(); const el=document.getElementById('d_t'); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} },150);
+}
+
+function syncMeal(){
+  const d=document.getElementById('d_date'), t=document.getElementById('d_time'), s=document.getElementById('d_meal');
+  if(!d||!t||!s) return;
+  const ts=tsFrom(d.value,t.value), dk=todayKey(new Date(ts));
+  const sug=slotSuggestion(ts,dk);
+  const hint=document.getElementById('d_wk');
+  if(hint) hint.innerHTML = sug
+    ? `<div class="hint" style="font-size:12.5px;margin:0 0 12px"><b>${sug.w.km?sug.w.km+' km ':''}${sug.w.kind.toLowerCase()} logged that day${sug.w.time?' at '+sug.w.time:''}.</b>
+        ${WORKOUT_SLOTS.map(x=>`<button class="chipbtn ${s.value===x?'on':''}" onclick="pickSlot('${x}')">${x}</button>`).join('')}</div>`
+    : '';
+  if(s.dataset.touched) return;
+  s.value = (sug && sug.slot) ? sug.slot : mealOf(ts);
+}
+function pickSlot(x){ const s=document.getElementById('d_meal'); if(!s) return; s.value=x; s.dataset.touched=1; syncMeal(); }
+async function describeGo(){
+  const txt=document.getElementById('d_t').value.trim();
+  const meal=document.getElementById('d_meal').value;
+  const when=tsFrom(document.getElementById('d_date').value, document.getElementById('d_time').value);
+  const whenDate=todayKey(new Date(when));
+  if(!txt){ alert('Write what you ate first.'); return; }
+  const prev=document.getElementById('dprev');
+  const parts=parseParts(txt);
+  const hits=parts.map(lookupLocal);
+
+  // everything recognised → no API call at all
+  if(parts.length && hits.every(Boolean)){
+    const items=hits.map(hHit=>({name:hHit.item.n, qty:hHit.qty, unit:hHit.item.srv,
+      kcal:hHit.item.kcal*hHit.qty, sat:hHit.item.sat*hHit.qty, na:hHit.item.na*hHit.qty,
+      sug:hHit.item.sug*hHit.qty, pur:hHit.item.pur*hHit.qty}));
+    const tot=items.reduce((a,i)=>({kcal:a.kcal+i.kcal,sat:a.sat+i.sat,na:a.na+i.na,sug:a.sug+i.sug,pur:a.pur+i.pur}),
+      {kcal:0,sat:0,na:0,sug:0,pur:0});
+    const eid=uid();
+    S.logs.push({id:eid,date:whenDate,ts:when,dishId:null,name:txt.length>60?txt.slice(0,57)+'…':txt,
+      qty:1,meal,items,hasPhoto:false,free:true,
+      seen:'matched from your food list — no AI needed',
+      kcal:Math.round(tot.kcal),sat:+tot.sat.toFixed(1),na:Math.round(tot.na),
+      sug:+tot.sug.toFixed(1),pur:Math.round(tot.pur)});
+    save(); closeSheet(); cur=whenDate; tab='today'; render(); showFlash(flashFor(eid));
+    return;
+  }
+
+  if(!activeKey()){ alert('Some of that is new, so it needs the AI. Connect a provider in Settings — or add the numbers by hand.'); return; }
+  prev.innerHTML=`<div class="hint" style="font-size:12.5px"><span class="spin"></span> Working out ${hits.filter(x=>!x).length} new item${hits.filter(x=>!x).length===1?'':'s'}…</div>`;
+  try{
+    const out=await identifyText(txt);
+    if(!out) throw new Error('No usable answer.');
+    S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
+    reconcile(out); learnFrom(out);
+    const eid=uid();
+    S.logs.push({id:eid,date:whenDate,ts:when,dishId:null,name:out.name||txt.slice(0,57),
+      qty:1,meal:(out.meal&&MEAL_ORDER.includes(out.meal))?out.meal:meal,items:out.items||[],hasPhoto:false,auto:true,
+      seen:out.portionSeen||'',
+      kcal:Math.round(out.kcal),sat:+(+out.sat).toFixed(1),na:Math.round(out.na),
+      sug:+(+out.sug).toFixed(1),pur:Math.round(out.pur)});
+    save(); closeSheet(); cur=whenDate; tab='today'; render(); showFlash(flashFor(eid));
+  }catch(e){
+    prev.innerHTML=`<div class="hint bad" style="font-size:12.5px">Couldn't work that out — ${String(e.fix||e.message||e).slice(0,140)}</div>`;
+  }
+}
+
+/* Same model, no image. */
+async function identifyText(text){
+  const P=prov();
+  const body={ model:curModel(), max_tokens:1500,
+    messages:[{role:'user',content:`Work out the nutrition for what this person ate. There is no photo — go on the description alone.
+
+They wrote: "${text}"
+
+They are Malaysian-Chinese, in Kuala Lumpur. Malaysian brands and portions apply — a bottle of 100 Plus is 500ml unless they say otherwise, a "glass" of milk is about 250ml.
+${recentMealContext()}
+Break it into components. Give each a "qty" (how many units) and a "unit" (what one unit is), with kcal/sat/na/sug/pur covering the whole qty. Name components in the SINGULAR ("banana", not "2 bananas"). Top-level totals must be the SUM. At most 8 components, short strings.
+
+Purine guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tofu 20–31 · eggs 0 · dairy 0 · fruit and vegetables 3–70 · rice 26.
+Saturated fat is what matters most to this person (LDL 5.2, coronary calcium 91).
+
+Reply with ONLY a JSON object:
+{"name":"short summary of the meal","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component","qty":number,"unit":"1 medium","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you assumed","note":"one short sentence on the biggest issue"}`}]};
+  const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
+  if(S.provider==='ilmu') hdr['Authorization']='Bearer '+activeKey();
+  else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
+  const r=await fetch(P.url,{method:'POST',headers:hdr,body:JSON.stringify(body)});
+  if(!r.ok){ const t=await r.text();
+    if(r.status===401) throw aiErr('key','Key rejected','Check it in Settings.');
+    throw aiErr('other','Request failed ('+r.status+')',String(t).slice(0,120)); }
+  const j=await r.json();
+  const o=parseLoose((j.content||[]).map(c=>c.text||'').join(''));
+  if(!o) throw aiErr('noparse','Couldn\'t read the reply','Try rewording it.');
+  o.items=Array.isArray(o.items)?o.items:[];
+  return o;
+}
 function openWorkout(){
   openSheet(`<h2>Log a run</h2>
     <p class="muted" style="margin:-4px 0 14px">Straight off your watch — it feeds the net calorie line on Today.</p>
@@ -1006,6 +1163,8 @@ function openWorkout(){
     <div class="row" style="gap:8px">
       <div class="fld" style="flex:1"><label>Average HR</label><input type="number" id="wk_hr" placeholder="148" inputmode="numeric"></div>
       <div class="fld" style="flex:1"><label>Duration (min)</label><input type="number" id="wk_min" placeholder="68" inputmode="numeric"></div></div>
+    <div class="fld"><label>Start time <span class="tiny" style="text-transform:none;letter-spacing:0">— lets the app spot pre/post-run food</span></label>
+      <input type="time" id="wk_time" value="${timeStr(defaultTs())}"></div>
     <div class="fld"><label>Type</label><select id="wk_kind">
       <option>Easy run</option><option>Long run</option><option>Intervals / tempo</option><option>Race</option><option>Other</option></select></div>
     <div class="hint" style="font-size:12.5px">On long runs, weigh yourself before and after — that's what separates dehydration from overdrinking behind your headaches. Log it under Weight.</div>
@@ -1017,7 +1176,8 @@ function commitWorkout(){
   const kc=v('wk_kcal');
   if(!kc && !v('wk_km')){ alert('Enter at least distance or calories.'); return; }
   S.workouts.push({id:uid(),date:document.getElementById('wk_d').value||todayKey(),
-    kind:document.getElementById('wk_kind').value, km:v('wk_km'), kcal:kc, hr:v('wk_hr'), mins:v('wk_min')});
+    kind:document.getElementById('wk_kind').value, km:v('wk_km'), kcal:kc, hr:v('wk_hr'), mins:v('wk_min'),
+    time:(document.getElementById('wk_time')||{}).value||''});
   save(); closeSheet(); render();
 }
 function openFlare(){
@@ -1131,6 +1291,7 @@ function onPhoto(input, fromLibrary){
         out.portionSeen=(out.portionSeen? out.portionSeen+' · ' : '')+'using our measured figures for '+d.n+' ('+d.srv+')';
       }
       S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
+      reconcile(out); learnFrom(out);
 
       // Confident → log it and get out of the way. Unsure → ask.
       if(out.confidence==='high'){
@@ -1210,6 +1371,9 @@ function openEdit(l){
     <div class="row" style="gap:8px">
       <div class="fld" style="flex:1"><label>Purine mg</label><input type="number" id="e_pur" value="${Math.round(l.pur)}"></div>
       <div class="fld" style="flex:1"><label>Meal</label><select id="e_meal">${MEAL_ORDER.map(m=>`<option ${(l.meal||mealOf(l.ts))===m?'selected':''}>${m}</option>`).join('')}</select></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1.2"><label>Date</label><input type="date" id="e_date" value="${l.date}" max="${todayKey()}"></div>
+      <div class="fld" style="flex:1"><label>Time</label><input type="time" id="e_time" value="${timeStr(l.ts)}"></div></div>
     <button class="btn full" onclick="saveEdit('${l.id}')">Save</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
@@ -1231,6 +1395,7 @@ async function reEstimate(id){
     const out=await identify(img, hint);
     if(out.notFood) throw new Error('It still cannot see food in that photo.');
     S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
+    reconcile(out); learnFrom(out);
     const mt=matchDish(out.name);
     if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.matched=d.n; }
     for(const [k,el] of [['kcal','e_kcal'],['sat','e_sat'],['na','e_na'],['sug','e_sug'],['pur','e_pur']])
@@ -1251,11 +1416,13 @@ function saveEdit(id){
   const v=i=>+document.getElementById(i).value||0;
   l.name=document.getElementById('e_n').value.trim()||l.name;
   l.meal=document.getElementById('e_meal').value;
+  const nd=document.getElementById('e_date'), nt=document.getElementById('e_time');
+  if(nd&&nt){ l.ts=tsFrom(nd.value,nt.value); l.date=todayKey(new Date(l.ts)); }
   l.kcal=v('e_kcal'); l.sat=v('e_sat'); l.na=v('e_na'); l.sug=v('e_sug'); l.pur=v('e_pur');
   l.base={kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur}; l.frac=1;
   if(l.pending){ l.seen=l.pending.seen||l.seen; l.matched=l.pending.matched||''; l.items=l.pending.items||[]; delete l.pending; }
   l.auto=false; editing=null;
-  save(); closeSheet(); render(); showFlash(flashFor(id));
+  save(); closeSheet(); cur=l.date; render(); showFlash(flashFor(id));
 }
 function shrink(dataUrl,max,quality){
   return new Promise(res=>{
@@ -1297,7 +1464,7 @@ ${hint? `\n**THE PERSON HAS TOLD YOU WHAT THIS IS: "${hint}"**\nTrust that compl
 ${recentMealContext()}
 Keep every string short. List at most 6 components. Do not add commentary outside the JSON.
 
-**If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items" with its own numbers, and make the top-level kcal/sat/na/sug/pur the SUM of them. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
+**If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items" with its own numbers. Give each a "qty" (how many units) and a "unit" (what one unit is), and let its kcal/sat/etc cover the whole qty. Name components in the SINGULAR ("banana", not "2 bananas"). Make the top-level kcal/sat/na/sug/pur the SUM of all components. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
 
 Purine matters a little (they have gout, but it is secondary). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
 
@@ -1313,7 +1480,7 @@ Set confidence to "high" ONLY if you can clearly identify the dish AND judge the
 {"notFood":true,"saw":"what is actually in the photo, 3-6 words"}
 
 Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
-{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
+{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component, singular e.g. banana","qty":number,"unit":"e.g. 1 medium / 500ml bottle","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
     ]}]
   };
   let r;
@@ -1383,6 +1550,69 @@ function recentMealContext(){
   if(!seen.length) return '';
   return `\nRecently eaten, most recent first — they often finish leftovers, so if the photo resembles one of these it probably IS that dish:\n${seen.join(' · ')}\n`;
 }
+/* Anything the AI works out gets remembered, per unit, so the same food is
+   free next time. Components are learned individually — "2 bananas" teaches
+   the app what ONE banana is. */
+function learnItem(name, qty, vals, unit){
+  const n=(name||'').trim(); if(!n || n.length<2) return;
+  const q=Math.max(0.01, +qty||1);
+  const per={kcal:(+vals.kcal||0)/q, sat:(+vals.sat||0)/q, na:(+vals.na||0)/q,
+             sug:(+vals.sug||0)/q, pur:(+vals.pur||0)/q};
+  if(!per.kcal && !per.sat && !per.na) return;
+  const key=normalise(n);
+  let e=S.learned.find(x=>normalise(x.n)===key);
+  if(e){                                  // average towards the newer estimate
+    for(const k of ['kcal','sat','na','sug','pur']) e[k]=+(((e[k]*e.uses)+per[k])/(e.uses+1)).toFixed(2);
+    e.uses++; e.ts=Date.now(); if(unit&&!e.srv) e.srv=unit;
+  } else {
+    S.learned.push({id:'L'+uid(), n:n, srv:unit||'1 serving', uses:1, ts:Date.now(),
+      kcal:Math.round(per.kcal), sat:+per.sat.toFixed(1), na:Math.round(per.na),
+      sug:+per.sug.toFixed(1), pur:Math.round(per.pur), grade:'AI', g:'learned'});
+  }
+  if(S.learned.length>400) S.learned.sort((a,b)=>b.uses-a.uses||b.ts-a.ts), S.learned.length=400;
+}
+/* If the model's headline total disagrees with its own component list, trust
+   the components — they're individually reasoned, the total is arithmetic it
+   did in its head. */
+function reconcile(out){
+  if(!out || !out.items || out.items.length<2) return out;
+  const sum={kcal:0,sat:0,na:0,sug:0,pur:0};
+  for(const i of out.items) for(const k in sum) sum[k]+=(+i[k]||0);
+  if(!sum.kcal) return out;
+  const drift=Math.abs(sum.kcal-(+out.kcal||0))/Math.max(sum.kcal,1);
+  if(drift>0.1){
+    out.reconciled=Math.round(+out.kcal||0);
+    for(const k in sum) out[k]= (k==='sat'||k==='sug')? +sum[k].toFixed(1) : Math.round(sum[k]);
+  }
+  return out;
+}
+function learnFrom(out){
+  if(out.items && out.items.length){
+    for(const it of out.items) learnItem(it.name, it.qty||1, it, it.unit);
+    if(out.items.length===1) return;
+  } else if(out.name){ learnItem(out.name, 1, out); }
+}
+function allFoods(){ return DB.concat(S.learned||[]); }
+
+/* Free-text parsing: "2 bottles of 100 Plus, 2 bananas and a glass of milk" */
+const NUMW={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,half:0.5};
+function parseParts(t){
+  return String(t||'').split(/\n|,|;|\band\b|\+/i).map(s=>s.trim().replace(/^(?:with|plus)\s+/i,'')).filter(s=>s.length>1);
+}
+function parseQty(s){
+  let m=s.match(/^(\d+(?:\.\d+)?)\s*(?:x\s*)?/);
+  if(m) return {qty:+m[1], rest:s.slice(m[0].length).trim()};
+  m=s.match(/^([a-z]+)\s+/i);
+  if(m && NUMW[m[1].toLowerCase()]!=null) return {qty:NUMW[m[1].toLowerCase()], rest:s.slice(m[0].length).trim()};
+  return {qty:1, rest:s};
+}
+function lookupLocal(part){
+  const {qty,rest}=parseQty(part);
+  const cleaned=rest.replace(/^(?:bottles?|glass(?:es)?|cups?|pieces?|slices?|bowls?|plates?|packs?)\s+of\s+/i,'')
+                    .replace(/^(?:bottles?|glass(?:es)?|cups?|pieces?|slices?|bowls?|plates?)\s+/i,'');
+  const m=matchDish(cleaned) || matchDish(rest);
+  return m? {item:m.dish, qty, score:m.score, label:rest} : null;
+}
 function normalise(s){
   let t=(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
   for(const [re,to] of SPELL) t=t.replace(re,to);
@@ -1405,7 +1635,7 @@ function matchDish(name){
   const n=normalise(name); if(n.length<3) return null;
   const words=n.split(' ').filter(w=>w.length>2);
   let best=null,bestScore=0;
-  for(const d of DB){
+  for(const d of allFoods()){
     const dn=normalise(d.n);
     let score=0;
     if(dn===n) score=100;
@@ -1514,7 +1744,7 @@ async function ghErr(r){
 function splitState(){
   const data={v:2, logs:S.logs.map(l=>{const c={...l}; delete c.photo; return c;}),
               flares:S.flares, weights:S.weights, headaches:S.headaches, workouts:S.workouts||[],
-              targets:S.targets, recent:S.recent, savedAt:Date.now()};
+              targets:S.targets, recent:S.recent, learned:S.learned||[], savedAt:Date.now()};
   return {data};                               // apiKey and ghToken never leave the phone
 }
 async function photosForBackup(){
@@ -1612,7 +1842,7 @@ async function restoreBackup(){
     S=Object.assign(blank(), {
       logs:(data.logs||[]),
       flares:data.flares||[], weights:data.weights||[], headaches:data.headaches||[], workouts:data.workouts||[],
-      targets:Object.assign({...DEFAULT_TARGETS}, data.targets||{}), recent:data.recent||[],
+      targets:Object.assign({...DEFAULT_TARGETS}, data.targets||{}), recent:data.recent||[], learned:data.learned||[],
       ghToken:keepTok, apiKey:keepKey, gistId:keepId, gistUrl:keepUrl, lastBackup:Date.now()
     });
     saveLocal(); render();
