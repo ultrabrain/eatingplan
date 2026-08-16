@@ -193,6 +193,45 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .netline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;
   background:var(--grid);border-radius:9px;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)}
 .netline b{color:var(--ink);font-weight:650}
+.dlab{font-size:13.5px;font-weight:600;min-width:82px;text-align:center;padding:5px 6px;border-radius:8px}
+.dlab:active{background:var(--grid)}
+.calhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:650;font-size:15px}
+.calhd button{width:34px;height:34px;border-radius:9px;font-size:19px;color:var(--ink2)}
+.calhd button:active{background:var(--grid)}
+.caldow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.caldow span{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cd{aspect-ratio:1;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--raised);border:1px solid transparent}
+.cd.empty{background:transparent}
+.cd.sel{border-color:var(--blue);background:rgba(42,120,214,.10)}
+.cd.fut{opacity:.28}
+.cd:active:not(.fut){background:var(--grid)}
+.cdn{font-size:12.5px;font-variant-numeric:tabular-nums}
+.cdot{width:7px;height:7px;border-radius:50%;display:block}
+.callegend{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px;font-size:11px;color:var(--ink2)}
+.callegend span{display:inline-flex;align-items:center;gap:4px}
+.callegend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.sb{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 5px;border-radius:5px;vertical-align:1px;margin-left:4px}
+.sb.meas{background:rgba(12,163,12,.16);color:#0a7a0a}
+.sb.save{background:rgba(42,120,214,.16);color:var(--blue)}
+.sb.newb{background:rgba(250,178,25,.20);color:#8a5c00}
+.bdsrc{font-size:11.5px;color:var(--ink2);margin:-3px 0 8px}
+@media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .sb.meas{color:#0ca30c}
+ :root:where(:not([data-theme="light"])) .sb.newb{color:#fab219}}
+.fthumb{width:30px;height:30px;border-radius:8px;object-fit:cover;flex:none;border:1px solid var(--ring)}
+.bd{background:var(--raised);border:1px solid var(--ring);border-radius:11px;padding:11px 12px;margin-top:11px}
+.bdh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:7px}
+.bdrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--grid)}
+.bdrow:last-of-type{border-bottom:0}
+.bdn{flex:1;min-width:0;font-size:13.5px;font-weight:600}
+.bdn small{display:block;font-weight:400;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.bdq{font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink2);min-width:34px;text-align:right}
+.bdv{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+.bdv small{font-weight:400;color:var(--muted);font-size:10px;margin-left:2px}
+.stp{display:flex;align-items:center;gap:2px;flex:none}
+.stp button{width:26px;height:26px;border-radius:7px;background:var(--grid);font-size:16px;line-height:1;color:var(--ink)}
+.stp span{min-width:30px;text-align:center;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
+.bdtot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid var(--axis);font-size:13px}
 .pq{margin-top:11px;padding-top:10px;border-top:1px solid var(--ring)}
 .pql{font-size:12px;font-weight:650;color:var(--ink2);display:block;margin-bottom:7px}
 .pqr{display:flex;gap:5px}
@@ -212,7 +251,7 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
     <h1 id="title">Today</h1><span id="bld" class="tiny" style="margin-left:-4px;align-self:flex-end;padding-bottom:3px"></span>
     <div class="datenav">
       <button id="prev" aria-label="Previous day">‹</button>
-      <span class="dlab" id="dlab">—</span>
+      <button class="dlab" id="dlab" onclick="openCal()">—</button>
       <button id="next" aria-label="Next day">›</button>
       <button id="gear" aria-label="Settings" title="Settings" style="margin-left:2px">⚙</button>
     </div>
@@ -223,11 +262,12 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 
 <nav><div class="nv">
   <button data-tab="today" class="on"><span class="ic">◍</span>Today</button>
-  <button data-tab="add"><span class="ic">+</span>Log food</button>
+  <button data-tab="add"><span class="ic">☰</span>Food options</button>
   <button data-tab="trends"><span class="ic">◫</span>Trends</button>
   <button data-tab="health"><span class="ic">♡</span>Health</button>
 </div></nav>
 
+<input type="file" id="fpic" accept="image/*" style="display:none">
 <div class="sheet-bg" id="sbg"></div>
 <div class="sheet" id="sheet"></div>
 
@@ -306,7 +346,7 @@ const DB = [
 {id:'kosong',    n:'Air kosong / tea',  g:'drink', srv:'—',    kcal:0,   sat:0,  na:0,  sug:0,  pur:0, grade:'M'},
 ];
 
-const GROUPS = {learned:'Your foods', bfast:'Breakfast', lunch:'Lunch', wknd:'Weekend', home:'Home', drink:'Drinks'};
+const GROUPS = {learned:'Single items', bfast:'Breakfast', lunch:'Lunch', wknd:'Weekend', home:'Home', drink:'Drinks'};
 
 /* Swap suggestions: [fromId, toId, reason] */
 const SWAPS = [
@@ -335,6 +375,7 @@ const DEFAULT_TARGETS = {
   sat:17,     // 7% of energy — LDL 5.2 + CAC 91
   na:2000,    // WHO limit — diastolic BP 95
   sug:25,     // WHO conditional <5% energy — HbA1c 5.8%
+  fru:25,     // no formal guideline; ~25g is where urate rises measurably
   pur:400     // Japanese gout guideline 3rd ed. — urate 500, 2 flares in 2026
 };
 /* Ordered by what actually threatens him. Heart first — that's the
@@ -346,10 +387,12 @@ const METRICS = [
    why:'BP 127/95 — the diastolic is already hypertensive.'},
   {k:'kcal', n:'Calories',      u:'',   grp:'metab',
    why:'80.6 kg → 75 kg. Weight loss moves HbA1c more than anything else.'},
-  {k:'sug',  n:'Added sugar',   u:'g',  grp:'metab',
-   why:'HbA1c 5.8% — prediabetes.'},
+  {k:'sug',  n:'Free sugars',   u:'g',  grp:'metab',
+   why:'WHO definition — added sugars and juice. Fruit and milk sugars are excluded.'},
   {k:'pur',  n:'Purine',        u:'mg', grp:'gout',
    why:'Gout. Secondary — but flares raise MI risk for 60 days after.'},
+  {k:'fru',  n:'Fructose',      u:'g',  grp:'gout',
+   why:'The sugar that raises urate. Exercise does NOT offset this one.'},
 ];
 const GRP = {
   heart:{n:'Heart', sub:'Calcium score 91 · LDL 5.2 — this is the point'},
@@ -388,7 +431,7 @@ function slotSuggestion(ts,dateKey){
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='21';
+const BUILD='26';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -415,7 +458,8 @@ const IDB={
     q.onerror=()=>res(out); });},
   async clear(){ const s=await this.tx('readwrite'); return new Promise(res=>{ const q=s.clear(); q.onsuccess=()=>res(); q.onerror=()=>res(); }); }
 };
-let THUMBS={};                       // id -> small dataURL, for list rendering
+let THUMBS={};                       // log id -> small dataURL, for list rendering
+let FOODPIC={};                      // saved-food id -> small dataURL
 let S = load();
 let cur = todayKey();
 let tab = 'today';
@@ -425,7 +469,7 @@ let q = '';
 function load(){
   try{
     const raw = localStorage.getItem(LS);
-    if(raw) { const p = JSON.parse(raw); return Object.assign(blank(), p); }
+    if(raw) { const p = JSON.parse(raw); return migrate(Object.assign(blank(), p)); }
   }catch(e){ console.warn('load failed', e); }
   const b = blank();
   // Seed the two flares already on record, so the history starts complete.
@@ -435,6 +479,35 @@ function load(){
   ];
   b.weights = [{id:'seedw', date:'2026-08-05', kg:80.6, ctx:'normal', km:0}];
   return b;
+}
+/* Builds before v26 wrote "free" (no-AI) entries with flat, pre-multiplied item
+   figures — {name,qty,kcal,...} — instead of per-unit {present,eaten,per:{}}.
+   Those entries have no i.eaten, which crashes the day view. Convert them once,
+   in place, dividing back out by qty to recover the per-unit numbers.
+   Anything already in the new shape is left untouched. */
+function migrate(s){
+  let fixed=0;
+  for(const l of (s.logs||[])){
+    if(!Array.isArray(l.items) || !l.items.length) continue;
+    l.items=l.items.map(i=>{
+      if(i && i.per && i.eaten!=null) return i;             // already per-unit
+      const q=Math.max(0.01, +i.qty || +i.present || 1);
+      const d=v=>{ const n=+v; return isFinite(n) ? +(n/q).toFixed(3) : 0; };
+      fixed++;
+      // A nameless row keeps its calories under the label "Item" rather than
+      // being dropped. normItems() discards nameless rows because that is a
+      // fresh AI reply we can re-ask for; this is the user's saved history, and
+      // silently deleting a row would quietly change a past day's totals.
+      return {name:String(i.name||'').trim()||'Item', unit:i.unit||'1 serving',
+        present:q, eaten:q,
+        per:i.per ? i.per : {kcal:d(i.kcal),sat:d(i.sat),na:d(i.na),
+                             sug:d(i.sug),pur:d(i.pur),fru:d(i.fru)},
+        src:i.src||'saved'};
+    }).filter(i=>i.name);
+    if(fixed) applyItems(l);   // totals recomputed from components, as everywhere else
+  }
+  if(fixed) console.info('migrated '+fixed+' legacy item rows to per-unit');
+  return s;
 }
 function blank(){ return {logs:[], flares:[], weights:[], headaches:[], targets:{...DEFAULT_TARGETS},
   apiKey:'', recent:[], ghToken:'', gistId:'', gistUrl:'', lastBackup:0, lastPhotoBackup:0, backupErr:'',
@@ -489,8 +562,10 @@ function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toStrin
 function logsFor(k){ return S.logs.filter(l=>l.date===k); }
 function worksFor(k){ return (S.workouts||[]).filter(w=>w.date===k); }
 function burnFor(k){ return worksFor(k).reduce((s,w)=>s+(+w.kcal||0),0); }
+function isFuel(l){ return WORKOUT_SLOTS.includes(l.meal); }
+function fuelSugar(k){ return logsFor(k).filter(isFuel).reduce((s,l)=>s+(+l.sug||0)*(l.qty||1),0); }
 function totals(k){
-  const t={kcal:0,sat:0,na:0,sug:0,pur:0};
+  const t={kcal:0,sat:0,na:0,sug:0,pur:0,fru:0};
   for(const l of logsFor(k)) for(const m in t) t[m]+= (l[m]||0)*(l.qty||1);
   return t;
 }
@@ -507,7 +582,7 @@ function render(){
   document.getElementById('dlab').textContent = prettyDate(cur);
   document.getElementById('next').style.visibility = cur>=todayKey() ? 'hidden':'visible';
   document.querySelectorAll('.nv button').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
-  const titles={today:'Food log',add:'Log food',trends:'Trends',health:'Health'};
+  const titles={today:'Food log',add:'Food options',trends:'Trends',health:'Health'};
   document.getElementById('title').textContent = titles[tab];
   const dn=(tab==='today'||tab==='add');
   ['prev','dlab','next'].forEach(id=>{const e=document.getElementById(id); if(e) e.style.display=dn?'':'none';});
@@ -558,6 +633,13 @@ function renderToday(){
     h += `<div class="card ${g==='gout'?'secondary':''}">
       <div class="ghead"><span class="gn">${GRP[g].n}</span><span class="gs">${GRP[g].sub}</span></div>
       ${ms.map(m=>{
+        if(m.k==='sug'){
+          const fuel=fuelSugar(cur), diet=Math.max(0,t.sug-fuel);
+          return meterHTML(m,diet,tg.sug) + (fuel? `
+            <div class="netline"><span>Everyday <b>${fmt(diet)}g</b></span><span>+</span>
+              <span>Fuel around training <b>${fmt(fuel)}g</b></span></div>
+            <p class="tiny" style="margin:5px 0 0">Fuel isn't counted against the target — WHO's limit is about habitual diet, not sports nutrition, and sugar taken before or during a run is largely burned rather than stored (80% oxidised vs 49% at rest). <b>But see fructose below — that part exercise does not fix.</b></p>` : '');
+        }
         if(m.k!=='kcal') return meterHTML(m,t[m.k],tg[m.k]);
         const net=Math.max(0,t.kcal-burn);
         return meterHTML(m, burn?net:t.kcal, tg.kcal) + (burn? `
@@ -589,7 +671,7 @@ function renderToday(){
 
   h += `<div class="card"><div class="row sp" style="margin-bottom:6px">
       <h2 style="margin:0">Logged</h2><span class="tiny">${ls.length} item${ls.length===1?'':'s'}</span></div>`;
-  if(!ls.length) h += `<div class="empty">Nothing logged yet.<br><br><button class="btn ghost" onclick="go('add')">Pick from the list instead</button></div>`;
+  if(!ls.length) h += `<div class="empty">Nothing logged yet.<br><br><button class="btn ghost" onclick="go('add')">Browse food options</button></div>`;
   else {
     const byMeal={};
     for(const l of ls) (byMeal[l.meal||mealOf(l.ts)] ||= []).push(l);
@@ -604,12 +686,13 @@ function renderToday(){
           <span class="e-nm">${l.name}${(l.qty||1)!==1?` <span class="tiny">×${l.qty}</span>`:''}
             ${l.frac!=null&&l.frac!==1?`<span class="pill warn" style="margin-left:5px">${(PORTIONS.find(p=>p[0]===l.frac)||[,''])[1]}</span>`:''}
             ${l.auto?'<span class="pill ok" style="margin-left:5px">AI</span>':''}
-            <small>${Math.round(l.kcal*(l.qty||1))} kcal · <b>${fmt(l.sat*(l.qty||1))}g sat</b> · ${Math.round(l.na*(l.qty||1))}mg Na</small></span>
+            <small>${Math.round(l.kcal*(l.qty||1))} kcal · <b>${fmt(l.sat*(l.qty||1))}g sat</b> · ${Math.round(l.na*(l.qty||1))}mg Na</small>
+            ${(l.items&&l.items.length)?`<small style="color:var(--muted)">${l.items.map(i=>`${+(+i.eaten||0).toFixed(2)}× ${i.name}`).join(' · ')}</small>`:''}</span>
           <button class="del" onclick="editLog('${l.id}')" aria-label="Edit">✎</button>
           <button class="del" onclick="delLog('${l.id}')" aria-label="Delete">×</button>
         </div>`).join('');
     }
-    h += `<button class="btn ghost full" style="margin-top:14px" onclick="go('add')">Add from the list</button>`;
+    h += `<button class="btn ghost full" style="margin-top:14px" onclick="go('add')">Browse food options</button>`;
   }
   h += `</div>`;
   view.innerHTML = h;
@@ -634,7 +717,10 @@ function swapHint(ls){
 function renderAdd(){
   let h = `<div class="card">
     <button class="btn full" onclick="openDescribe()">Describe what you ate</button>
-    <p class="tiny" style="margin:8px 0 0;text-align:center">Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
+    <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('lbl').click()">Scan a product label</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="filter='learned';q='';renderAdd()">Your single items${(S.learned&&S.learned.length)?` (${S.learned.length})`:''}</button>
+    <input type="file" id="lbl" accept="image/*" capture="environment" style="display:none" onchange="scanLabel(this)">
+    <p class="tiny" style="margin:8px 0 0;text-align:center">Scan a gel, bar or drink once and it's in your list for good.<br>Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
   </div>
   <div class="card">
     <input class="search" id="q" placeholder="Search your dishes…" value="${q}" oninput="q=this.value;renderDishList()">
@@ -652,7 +738,7 @@ function renderDishList(){
   const el = document.getElementById('dishlist'); if(!el) return;
   const tg=S.targets;
   let list = allFoods().filter(d=> (filter==='all'||d.g===filter) && (!q || d.n.toLowerCase().includes(q.toLowerCase())));
-  if(filter==='learned') list.sort((a,b)=>(b.uses||0)-(a.uses||0));
+  if(filter==='learned') list.sort((a,b)=>(b.uses||0)-(a.uses||0)||(b.ts||0)-(a.ts||0));
   if(filter==='all' && !q && S.recent.length){
     const rec = S.recent.map(id=>allFoods().find(d=>d.id===id)).filter(Boolean);
     list = [...rec, ...list.filter(d=>!S.recent.includes(d.id))];
@@ -662,7 +748,7 @@ function renderDishList(){
     const worst = Math.max(d.sat/tg.sat, d.na/tg.na, d.pur/tg.pur, d.sug/tg.sug)*100;
     const c = worst>60?'var(--crit)':worst>=35?'var(--warn)':'var(--good)';
     return `<button class="dish" onclick="openLog('${d.id}')">
-      <span class="flag" style="background:${c}"></span>
+      ${FOODPIC[d.id]?`<img class="fthumb" src="${FOODPIC[d.id]}" alt="">`:`<span class="flag" style="background:${c}"></span>`}
       <span class="info"><span class="nm">${d.n}${d.g==='learned'?' <span class="pill ok" style="font-size:9.5px;padding:1px 5px">saved</span>':''}</span>
         <span class="sub">${d.srv?d.srv+' · ':''}${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na${d.uses>1?` · used ${d.uses}×`:''}</span></span>
       <span class="add">+</span></button>`;
@@ -828,6 +914,8 @@ function renderHealth(){
       </select></div>
     <p class="tiny" style="margin:0 0 10px">Photos live in IndexedDB, not the 5 MB localStorage box, so there's room for thousands. Only meals you actually log are kept — non-food shots and failed reads are discarded on the spot.</p>
     <button class="btn ghost full" style="margin-bottom:10px" onclick="clearPhotos()">Delete stored photos</button>
+    <button class="btn ghost full" style="margin-bottom:10px" onclick="runAudit()">Check my entries for errors</button>
+    <p class="tiny" style="margin:-4px 0 10px">Finds any meal whose total disagrees with its own breakdown — the bug that understated multi-item plates — and rebuilds it.</p>
     <button class="btn ghost full" onclick="exportData()">Export all data (JSON)</button>
     <p class="tiny" style="margin:8px 0 0">Your data lives only in this browser. Export before clearing site data or switching phones.</p>
     <a class="btn ghost full" href="index.html" style="margin-top:10px;text-decoration:none">Open the eating plan</a>
@@ -869,6 +957,28 @@ let pendingQty=1, pendingDish=null, pendingPhoto=null, pendingThumb=null, pendin
 let shotTs=Date.now(), shotDate=todayKey(), shotFromLibrary=false;
 
 function clearPending(){ pendingPhoto=null; pendingThumb=null; pendingFull=null; }
+async function setFoodPic(foodId, thumb, full){
+  if(!foodId||!thumb) return;
+  try{ await IDB.put('food:'+foodId,{thumb, full:full||thumb, ts:Date.now()});
+       FOODPIC[foodId]=thumb; }catch(e){ console.warn('food pic failed',e); }
+}
+async function dropFoodPic(foodId){
+  delete FOODPIC[foodId]; await IDB.del('food:'+foodId); save(); render();
+}
+function pickFoodPic(foodId){
+  const inp=document.getElementById('fpic');
+  inp.onchange=()=>{
+    const f=inp.files&&inp.files[0]; if(!f) return; inp.value='';
+    const r=new FileReader();
+    r.onload=async e=>{
+      const t=await shrink(e.target.result,160,0.7);
+      const full=await shrinkToBudget(e.target.result, S.photoKB||100, 900);
+      await setFoodPic(foodId,t,full); save(); closeSheet(); render();
+    };
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
 async function commitPhoto(id){
   if(!pendingThumb) return;
   try{ await IDB.put(id,{thumb:pendingThumb, full:pendingFull||pendingThumb, ts:Date.now()});
@@ -895,8 +1005,8 @@ function moveToToday(id){
 }
 function setPortion(id,f){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
-  const b=l.base||{kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur};
-  l.base=b; l.frac=f;
+  const b=l.base||{kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur,fru:l.fru||0};
+  l.base=b; l.frac=f; l.fru=+((b.fru||0)*f).toFixed(1);
   l.kcal=Math.round(b.kcal*f); l.sat=+(b.sat*f).toFixed(1);
   l.na=Math.round(b.na*f); l.sug=+(b.sug*f).toFixed(1); l.pur=Math.round(b.pur*f);
   save(); render(); showFlash(flashFor(id));
@@ -910,18 +1020,22 @@ function flashFor(id){
       <div style="flex:1;min-width:0">
         <div class="fh">Logged — ${l.name} <span class="tiny" style="font-weight:400">(${l.meal||''})</span></div>
         ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${l.seen}</div>`:''}
-        ${l.matched?`<div class="fs" style="color:var(--good)">✓ Matched to measured data for ${l.matched}</div>`:''}
+        ${l.matched?`<div class="fs" style="color:var(--good)">✓ Used your saved figures for <b>${l.matched}</b> — not a fresh estimate</div>`:''}
+        ${(!l.matched && !l.free && l.auto && !(l.items&&l.items.length))?`<div class="fs" style="color:var(--muted)">New to your list — estimated by AI and saved for next time</div>`:''}
         ${l.free?`<div class="fs" style="color:var(--good)">✓ Built from your saved foods — no AI, no cost</div>`:''}
         ${l.meal==='During workout'?`<div class="fs" style="color:var(--muted)">Taken during exercise — working muscle clears this sugar far better than sitting at a desk would.</div>`:''}
-        ${(l.items&&l.items.length>1)?`<div class="fs" style="color:var(--muted)">${l.items.length} components: ${l.items.map(i=>i.name).join(' · ')}</div>`:''}
+
       </div></div>
-    <div class="pq"><span class="pql">How much did you actually eat?</span>
-      <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>
+    ${(l.items&&l.items.length)
+      ? breakdownHTML(l.items,id,true)
+      : `<div class="pq"><span class="pql">How much did you actually eat?</span>
+      <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>`}
+    ${l.mismatch?`<div class="fs" style="margin-top:8px;color:var(--crit)"><b>Totals didn't match the breakdown</b> — recomputed from the components.</div>`:''}
     ${l.date!==todayKey()?`<div class="fs" style="margin-top:7px;color:var(--serious)">Logged to <b>${prettyDate(l.date)}</b>, from the photo's own timestamp.
       <button class="lnk" onclick="moveToToday('${id}')">Move to today</button></div>`:''}
     <div class="fs" style="margin-top:9px"><b>${fmt(l.sat)}g sat fat</b> (${satPct}% of today) · ${Math.round(l.na)}mg sodium (${naPct}%) · ${Math.round(l.kcal)} kcal</div>
     <div class="fa"><button onclick="editLog('${id}')">Edit</button>
-      <button onclick="deleteEntry('${id}')">Delete</button></div></div>`;
+      <button onclick="delLog('${id}')">Delete</button></div></div>`;
 }
 
 function openLog(id){
@@ -946,8 +1060,9 @@ function openLog(id){
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
 function forgetFood(id){
-  if(!confirm('Remove this from your saved foods? Past entries stay.')) return;
-  S.learned=S.learned.filter(x=>x.id!==id); save(); closeSheet(); render();
+  const f=(S.learned||[]).find(x=>x.id===id);
+  if(!confirm(`Forget "${f?f.n:'this food'}"?${FOODPIC[id]?' Its photo goes too.':''}\n\nMeals you've already logged with it are unaffected.`)) return;
+  S.learned=S.learned.filter(x=>x.id!==id); dropFoodPic(id); save(); closeSheet(); render();
 }
 function setQty(v,el){ pendingQty=v; el.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on')); el.classList.add('on'); }
 function commitLog(){
@@ -988,15 +1103,38 @@ function commitCustom(){
   commitPhoto(eid);
   pendingPhoto=null; save(); closeSheet(); tab='today'; render();
 }
-function delLog(id){ deleteEntry(id); }
-function delRec(k,id){ S[k]=S[k].filter(r=>r.id!==id); save(); render(); }
+function delLog(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  const bits=[`${Math.round(l.kcal)} kcal`, `${fmt(l.sat)}g sat fat`];
+  const msg=`Delete "${l.name}"?\n\n${l.meal||''} · ${bits.join(' · ')}`
+    + (THUMBS[id]?'\nIts photo will be deleted too.':'')
+    + '\n\nThis removes it from the day\'s totals.';
+  if(!confirm(msg)) return;
+  deleteEntry(id);
+}
+function delRec(k,id){
+  const r=(S[k]||[]).find(x=>x.id===id); if(!r) return;
+  // "on Today" reads wrong; "today" and "yesterday" want no preposition.
+  const when=d=>{ const p=prettyDate(d); return /^(Today|Yesterday)$/.test(p)? p.toLowerCase() : 'on '+p; };
+  const label={
+    flares:    r=>`gout flare ${when(r.date)}${r.joint?' — '+r.joint:''}`,
+    weights:   r=>`weight of ${r.kg} kg ${when(r.date)}${r.ctx&&r.ctx!=='normal'?` (${r.ctx==='pre'?'before':'after'} run)`:''}`,
+    headaches: r=>`headache ${when(r.date)}${r.sev?` — severity ${r.sev}/10`:''}`,
+    workouts:  r=>`${r.km?r.km+' km ':''}${(r.kind||'run').toLowerCase()} ${when(r.date)}`
+  }[k];
+  const what=label? label(r) : 'this record';
+  const extra = k==='flares'
+    ? '\n\nFlare dates decide whether your treatment recommendation is conditional or strong — only delete a mistake.' : '';
+  if(!confirm(`Delete the ${what}?${extra}`)) return;
+  S[k]=S[k].filter(x=>x.id!==id); save(); render();
+}
 
 function openKey(){
   const P=prov();
   openSheet(`<h2>Connect ${P.name}</h2>
     <p class="muted" style="margin:-4px 0 14px">One key, pasted once. After this, photographing a meal logs it.</p>
     <div class="hint" style="font-size:13px"><b>Where to get it:</b> ${P.keyWhere}<br>
-      Then add a little credit to the account. At <b>${(modelCost()*470).toFixed(1)} sen a photo</b>, three meals a day is about <b>RM ${(modelCost()*4.7*3*30).toFixed(2)} a month</b>.</div>
+      Then add a little credit to the account. At <b>${senTxt()} a photo</b>, three meals a day is about <b>${monthTxt()}</b>.</div>
     <div class="fld" style="margin-top:14px"><label>Paste your ${P.keyName}</label>
       <input type="password" id="k_v" value="${activeKey()}" placeholder="${P.keyPrefix}…" autocomplete="off" spellcheck="false"></div>
     <p class="tiny" style="margin:-4px 0 14px">Stays in this browser on this device. This page has no server — the key goes to ${P.name} and nowhere else.</p>
@@ -1030,7 +1168,7 @@ async function testConn(){
     const txt=await r.text();
     if(r.ok){
       showFlash(`<div class="flash ok"><div class="fh">${P.name} works</div>
-        <div class="fs">Model <b>${curModel()}</b> answered. Photos will cost about <b>${(modelCost()*470).toFixed(1)} sen</b> each.</div></div>`);
+        <div class="fs">Model <b>${curModel()}</b> answered. ${costKnown()?`Photos will cost about <b>${senTxt()}</b> each.`:`This provider does not publish its API rates, so the app can't show a cost per photo — check your ILMU console.`}</div></div>`);
     } else {
       let msg=txt.slice(0,160); try{ const j=JSON.parse(txt); msg=(j.error&&(j.error.message||j.error.type))||j.message||msg; }catch(e){}
       showFlash(`<div class="flash warn"><div class="fh">${P.name} refused the request (${r.status})</div>
@@ -1043,6 +1181,139 @@ async function testConn(){
       <div class="fa"><button onclick="S.provider='anthropic';S.model='';save();render();">Switch to Claude</button></div></div>`);
   }
 }
+function scanLabel(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  input.value='';
+  if(!activeKey()){ alert('Connect a provider in Settings first — reading a label needs the AI.'); return; }
+  const r=new FileReader();
+  r.onload=async e=>{
+    const thumb=await shrink(e.target.result,160,0.7);
+    const big=await shrinkToBudget(e.target.result, S.photoKB||100, 1100);   // panels need detail
+    labelPic={thumb, full:big};
+    openSheet(`<h2>Reading the label…</h2><div class="fr"><img class="fimg" src="${thumb}" alt="">
+      <div style="flex:1"><p class="muted" style="margin:0"><span class="spin"></span> Pulling the numbers off the panel.</p></div></div>`);
+    try{
+      const out=await readPanel(big);
+      S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
+      openSheet(`<h2>${out.name||'New food'}</h2>
+        <div class="fr" style="margin:-4px 0 12px"><img class="fimg" src="${thumb}" alt="">
+          <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${out.brand?out.brand+' · ':''}per ${out.serving||'serving'}</div></div></div>
+        <div class="fld"><label>Name</label><input id="pl_n" value="${(out.name||'').replace(/"/g,'&quot;')}"></div>
+        <div class="fld"><label>One serving is</label><input id="pl_s" value="${(out.serving||'1 serving').replace(/"/g,'&quot;')}"></div>
+        <div class="row" style="gap:8px">
+          <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="pl_kcal" value="${Math.round(out.kcal||0)}"></div>
+          <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="pl_sat" value="${+out.sat||0}"></div></div>
+        <div class="row" style="gap:8px">
+          <div class="fld" style="flex:1"><label>Sodium mg</label><input type="number" id="pl_na" value="${Math.round(out.na||0)}"></div>
+          <div class="fld" style="flex:1"><label>Free sugars g</label><input type="number" step="0.1" id="pl_sug" value="${+out.sug||0}"></div></div>
+        <div class="row" style="gap:8px">
+          <div class="fld" style="flex:1"><label>Fructose g</label><input type="number" step="0.1" id="pl_fru" value="${+out.fru||0}"></div>
+          <div class="fld" style="flex:1"><label>Purine mg</label><input type="number" id="pl_pur" value="${Math.round(out.pur||0)}"></div></div>
+        ${out.note?`<div class="hint" style="font-size:12.5px">${out.note}</div>`:''}
+        ${out.fru>0?`<div class="hint bad" style="font-size:12.5px"><b>${out.fru}g fructose per serving.</b> That's the number that matters for your gout — and exercise doesn't offset it.</div>`:''}
+        <button class="btn full" onclick="savePanel()">Save to my foods</button>
+        <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+    }catch(err){
+      openSheet(`<h2>Couldn't read that label</h2>
+        <p class="muted">${String(err.fix||err.message||err).slice(0,160)}</p>
+        <button class="btn ghost full" onclick="closeSheet()">Close</button>`);
+    }
+  };
+  r.readAsDataURL(f);
+}
+let labelPic=null;
+async function savePanel(){
+  const v=i=>+document.getElementById(i).value||0;
+  const n=document.getElementById('pl_n').value.trim();
+  if(!n){ alert('Give it a name.'); return; }
+  learnItem(n,1,{kcal:v('pl_kcal'),sat:v('pl_sat'),na:v('pl_na'),sug:v('pl_sug'),pur:v('pl_pur'),fru:v('pl_fru')},
+            document.getElementById('pl_s').value.trim()||'1 serving');
+  const e=S.learned.find(x=>normalise(x.n)===normalise(n));
+  if(e){ e.grade='label'; if(labelPic) await setFoodPic(e.id, labelPic.thumb, labelPic.full); }
+  labelPic=null;
+  save(); closeSheet(); filter='learned'; q=''; tab='add'; render();
+}
+
+async function readPanel(dataUrl){
+  const P=prov();
+  const body={ model:curModel(), max_tokens:900,
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},
+      {type:'text',text:`This is a photo of a food or drink package — probably the nutrition panel, possibly the front of pack.
+
+Read the numbers off it. Report values **per one serving as the pack defines a serving**. If the panel is per 100g/100ml and also states a serving size, convert to one serving and say which you used. If you can see the ingredients list, use it to judge sugar type.
+
+Definitions that matter here:
+- **"sug" = FREE SUGARS**: added sugars, honey, syrup, fruit juice. For a packaged product almost all listed sugar is free sugar, unless it's plain milk or plain yoghurt (lactose is NOT free sugar) or unsweetened dried/whole fruit.
+- **"fru" = grams of FRUCTOSE.** Use the ingredients: sucrose is 50% fructose by mass; high-fructose corn syrup roughly 55%; glucose, dextrose, maltodextrin and glucose syrup are 0% fructose; honey ~40%; fruit juice concentrate is high. If the ingredients list glucose/dextrose/maltodextrin only, fru is 0. Estimate and say how in the note.
+- **"pur" = purine mg.** Nearly always 0 for a drink, a gel or a confection. Only meat, fish, offal and yeast extract carry meaningful purine.
+
+If the image is not a food package at all, reply {"notLabel":true}.
+
+Reply with ONLY JSON:
+{"name":"product name","brand":"brand if visible","serving":"e.g. 1 sachet 40g / 500ml bottle","kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number,"note":"one short sentence — how you worked out the fructose, and anything worth knowing"}`}
+    ]}]};
+  const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
+  if(S.provider==='ilmu') hdr['Authorization']='Bearer '+activeKey();
+  else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
+  const r=await fetch(P.url,{method:'POST',headers:hdr,body:JSON.stringify(body)});
+  if(!r.ok){ const t=await r.text();
+    if(r.status===401) throw aiErr('key','Key rejected','Check it in Settings.');
+    throw aiErr('other','Request failed ('+r.status+')',String(t).slice(0,120)); }
+  const j=await r.json();
+  const o=parseLoose((j.content||[]).map(c=>c.text||'').join(''));
+  if(!o) throw aiErr('noparse','Couldn\'t read the reply','Try a straighter, better-lit photo of the panel.');
+  if(o.notLabel) throw aiErr('notlabel','That doesn\'t look like a package','Photograph the nutrition panel on the back.');
+  return o;
+}
+/* Which days actually have anything in them, and how that day went. */
+function dayStatus(k){
+  const ls=logsFor(k), ws=worksFor(k);
+  const other = ws.length || (S.weights||[]).some(w=>w.date===k)
+             || (S.flares||[]).some(f=>f.date===k) || (S.headaches||[]).some(x=>x.date===k);
+  if(!ls.length) return other? 'other' : null;
+  const sat=totals(k).sat, tgt=S.targets.sat;
+  return sat>tgt ? 'over' : sat>=tgt*0.8 ? 'near' : 'ok';
+}
+const STATUS_COL={ok:'var(--good)', near:'var(--warn)', over:'var(--crit)', other:'var(--axis)'};
+let calMonth=null;
+
+function openCal(shift){
+  const base = calMonth ? new Date(calMonth) : new Date(cur+'T12:00:00');
+  if(shift){ base.setMonth(base.getMonth()+shift); }
+  calMonth = new Date(base.getFullYear(), base.getMonth(), 1).getTime();
+  const first=new Date(calMonth), y=first.getFullYear(), mo=first.getMonth();
+  const days=new Date(y,mo+1,0).getDate();
+  const lead=(first.getDay()+6)%7;                       // Monday-first
+  const today=todayKey();
+  let cells='';
+  for(let i=0;i<lead;i++) cells+='<span class="cd empty"></span>';
+  for(let d=1; d<=days; d++){
+    const k=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const st=dayStatus(k), future=k>today;
+    cells+=`<button class="cd ${k===cur?'sel':''} ${future?'fut':''}" ${future?'disabled':''} onclick="gotoDay('${k}')">
+      <span class="cdn">${d}</span>
+      <span class="cdot" style="${st?`background:${STATUS_COL[st]}`:'background:transparent;border:1px solid var(--grid)'}"></span></button>`;
+  }
+  openSheet(`<h2>Jump to a day</h2>
+    <div class="calhd">
+      <button onclick="openCal(-1)">‹</button>
+      <span>${first.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>
+      <button onclick="openCal(1)">›</button>
+    </div>
+    <div class="caldow">${['M','T','W','T','F','S','S'].map(x=>`<span>${x}</span>`).join('')}</div>
+    <div class="calgrid">${cells}</div>
+    <div class="callegend">
+      <span><i style="background:var(--good)"></i>within budget</span>
+      <span><i style="background:var(--warn)"></i>close</span>
+      <span><i style="background:var(--crit)"></i>over</span>
+      <span><i style="background:var(--axis)"></i>run/weight only</span>
+      <span><i style="background:transparent;border:1px solid var(--grid)"></i>nothing logged</span>
+    </div>
+    <p class="tiny" style="margin:10px 0 0">Colour shows saturated fat against your 17 g target — the number that matters most for you.</p>
+    <button class="btn ghost full" style="margin-top:12px" onclick="gotoDay('${today}')">Back to today</button>`);
+}
+function gotoDay(k){ cur=k; calMonth=null; closeSheet(); tab='today'; render(); }
 function openDescribe(prefill){
   openSheet(`<h2>Describe what you ate</h2>
     <p class="muted" style="margin:-4px 0 12px">No photo needed. Write it however you'd say it — quantities help.</p>
@@ -1058,7 +1329,7 @@ function openDescribe(prefill){
       <p class="tiny" style="margin:6px 0 0">Follows the clock unless you change it. Fuel for a session? Pick one of the workout options.</p></div>
     <div id="dprev"></div>
     <button class="btn full" onclick="describeGo()">Work it out</button>
-    <p class="tiny" style="margin:7px 0 0;text-align:center">Anything already in your food list is free. Only new foods cost ${(modelCost()*470).toFixed(1)} sen.</p>
+    <p class="tiny" style="margin:7px 0 0;text-align:center">Anything already in your food list is free. Only new foods cost ${senTxt()}.</p>
     <button class="btn ghost full" style="margin-top:10px" onclick="closeSheet()">Cancel</button>`);
   setTimeout(()=>{syncMeal(); const el=document.getElementById('d_t'); if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);} },150);
 }
@@ -1089,17 +1360,21 @@ async function describeGo(){
 
   // everything recognised → no API call at all
   if(parts.length && hits.every(Boolean)){
-    const items=hits.map(hHit=>({name:hHit.item.n, qty:hHit.qty, unit:hHit.item.srv,
-      kcal:hHit.item.kcal*hHit.qty, sat:hHit.item.sat*hHit.qty, na:hHit.item.na*hHit.qty,
-      sug:hHit.item.sug*hHit.qty, pur:hHit.item.pur*hHit.qty}));
-    const tot=items.reduce((a,i)=>({kcal:a.kcal+i.kcal,sat:a.sat+i.sat,na:a.na+i.na,sug:a.sug+i.sug,pur:a.pur+i.pur}),
-      {kcal:0,sat:0,na:0,sug:0,pur:0});
+    // Same per-unit shape the AI path produces: figures are PER UNIT, never
+    // pre-multiplied. Totals come from applyItems() so the steppers, the audit
+    // and the day totals all read one source of truth.
+    const items=hits.map(hHit=>({
+      name:hHit.item.n, unit:hHit.item.srv||'1 serving',
+      present:hHit.qty, eaten:hHit.qty,
+      per:{kcal:+hHit.item.kcal||0, sat:+hHit.item.sat||0, na:+hHit.item.na||0,
+           sug:+hHit.item.sug||0,  pur:+hHit.item.pur||0, fru:+hHit.item.fru||0},
+      src:(hHit.item.g==='learned'?'saved':'measured')}));
     const eid=uid();
-    S.logs.push({id:eid,date:whenDate,ts:when,dishId:null,name:txt.length>60?txt.slice(0,57)+'…':txt,
-      qty:1,meal,items,hasPhoto:false,free:true,
-      seen:'matched from your food list — no AI needed',
-      kcal:Math.round(tot.kcal),sat:+tot.sat.toFixed(1),na:Math.round(tot.na),
-      sug:+tot.sug.toFixed(1),pur:Math.round(tot.pur)});
+    const ent={id:eid,date:whenDate,ts:when,dishId:null,name:txt.length>60?txt.slice(0,57)+'…':txt,
+      qty:1,meal,items,hasPhoto:false,free:true,said:txt,
+      seen:'matched from your food list — no AI needed'};
+    applyItems(ent);
+    S.logs.push(ent);
     save(); closeSheet(); cur=whenDate; tab='today'; render(); showFlash(flashFor(eid));
     return;
   }
@@ -1110,13 +1385,14 @@ async function describeGo(){
     const out=await identifyText(txt);
     if(!out) throw new Error('No usable answer.');
     S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-    reconcile(out); learnFrom(out);
+    learnFrom(out); reconcile(out);
     const eid=uid();
     S.logs.push({id:eid,date:whenDate,ts:when,dishId:null,name:out.name||txt.slice(0,57),
       qty:1,meal:(out.meal&&MEAL_ORDER.includes(out.meal))?out.meal:meal,items:out.items||[],hasPhoto:false,auto:true,
       seen:out.portionSeen||'',
       kcal:Math.round(out.kcal),sat:+(+out.sat).toFixed(1),na:Math.round(out.na),
-      sug:+(+out.sug).toFixed(1),pur:Math.round(out.pur)});
+      sug:+(+out.sug).toFixed(1),pur:Math.round(out.pur),fru:+(+out.fru||0).toFixed(1),mismatch:!!out.reconciled,said:txt});
+    applyItems(S.logs[S.logs.length-1]);
     save(); closeSheet(); cur=whenDate; tab='today'; render(); showFlash(flashFor(eid));
   }catch(e){
     prev.innerHTML=`<div class="hint bad" style="font-size:12.5px">Couldn't work that out — ${String(e.fix||e.message||e).slice(0,140)}</div>`;
@@ -1133,13 +1409,16 @@ They wrote: "${text}"
 
 They are Malaysian-Chinese, in Kuala Lumpur. Malaysian brands and portions apply — a bottle of 100 Plus is 500ml unless they say otherwise, a "glass" of milk is about 250ml.
 ${recentMealContext()}
-Break it into components. Give each a "qty" (how many units) and a "unit" (what one unit is), with kcal/sat/na/sug/pur covering the whole qty. Name components in the SINGULAR ("banana", not "2 bananas"). Top-level totals must be the SUM. At most 8 components, short strings.
+Break it into components. For each give "unit" (what ONE unit is), "present" (how many they had in front of them), "eaten" (how many they consumed — same as present unless they say otherwise), and kcal/sat/na/sug/fru/pur **PER SINGLE UNIT**. Name components in the SINGULAR. At most 8 components, short strings.
+
+**"sug" is FREE SUGARS only (WHO): added sugars, honey, syrup, juice. Whole fruit and milk lactose contribute ZERO free sugars.**
+**"fru" is grams of FRUCTOSE from all sources including fruit** (sucrose counts half). They have gout — fructose is what raises urate.
 
 Purine guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tofu 20–31 · eggs 0 · dairy 0 · fruit and vegetables 3–70 · rice 26.
 Saturated fat is what matters most to this person (LDL 5.2, coronary calcium 91).
 
 Reply with ONLY a JSON object:
-{"name":"short summary of the meal","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component","qty":number,"unit":"1 medium","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you assumed","note":"one short sentence on the biggest issue"}`}]};
+{"name":"short summary of the meal","kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component","unit":"1 medium","present":number,"eaten":number,"kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number}],"portionSeen":"what you assumed","note":"one short sentence on the biggest issue"}`}]};
   const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
   if(S.provider==='ilmu') hdr['Authorization']='Bearer '+activeKey();
   else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
@@ -1150,7 +1429,7 @@ Reply with ONLY a JSON object:
   const j=await r.json();
   const o=parseLoose((j.content||[]).map(c=>c.text||'').join(''));
   if(!o) throw aiErr('noparse','Couldn\'t read the reply','Try rewording it.');
-  o.items=Array.isArray(o.items)?o.items:[];
+  o.items=resolveItems(normItems(o.items));
   return o;
 }
 function openWorkout(){
@@ -1283,22 +1562,23 @@ function onPhoto(input, fromLibrary){
 
       const meal = out.meal && MEAL_ORDER.includes(out.meal) ? out.meal : mealOf(shotTs);
       const logDate = shotFromLibrary ? shotDate : cur;
-      const mt = matchDish(out.name);
-      if(mt){                                  // swap the estimate for measured data
+      const mt = safeMatch(out);              // only ever for a single-dish meal
+      if(!mt) reconcile(out);                 // components are the source of truth
+      if(mt){
         const d=mt.dish;
-        out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur;
+        out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.fru=d.fru||0;
         out.matched=d.n; out.grade=d.grade;
         out.portionSeen=(out.portionSeen? out.portionSeen+' · ' : '')+'using our measured figures for '+d.n+' ('+d.srv+')';
       }
       S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-      reconcile(out); learnFrom(out);
+      learnFrom(out);
 
       // Confident → log it and get out of the way. Unsure → ask.
       if(out.confidence==='high'){
         const entry={id:uid(),date:logDate,ts:shotTs,dishId:null,name:out.name||'Meal',qty:1,meal,auto:true,
           seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], hasPhoto:!!pendingThumb,
           base:{kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur},
-          kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur};
+          kcal:out.kcal,sat:out.sat,na:out.na,sug:out.sug,pur:out.pur,fru:out.fru||0};
         await commitPhoto(entry.id);
         S.logs.push(entry); save(); render();
         showFlash(flashFor(entry.id));
@@ -1352,14 +1632,15 @@ function openEdit(l){
   openSheet(`<h2>Fix this entry</h2>
     <div class="fr" style="margin:-4px 0 12px">
       ${THUMBS[l.id]?`<img class="fimg" src="${THUMBS[l.id]}" alt="">`:''}
-      <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${l.seen||'Logged '+prettyDate(l.date)}</div></div>
+      <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${l.seen||'Logged '+prettyDate(l.date)}</div>
+        ${l.said?`<div class="tiny" style="margin-top:4px;color:var(--blue)">You said: "${l.said}"</div>`:''}</div>
     </div>
     <div class="fld"><label>What was it, really?</label>
       <textarea id="e_n" rows="2" placeholder="e.g. leftover pork bone stew from last night, about half a bowl">${l.name||''}</textarea>
       <p class="tiny" style="margin:6px 0 0">Describe it however you like — portion, ingredients, how it was cooked. The more you say, the better the re-estimate.</p></div>
     <button class="btn full" onclick="reEstimate('${l.id}')" ${THUMBS[l.id]?'':'disabled style="opacity:.5"'}>Re-estimate from this description</button>
-    <p class="tiny" style="margin:7px 0 14px;text-align:center">${THUMBS[l.id]?`Sends your photo back with your words · ${(modelCost()*470).toFixed(1)} sen`:'No photo stored, so numbers must be entered by hand'}</p>
-    <div id="ebreak">${items?breakdownHTML(items):''}</div>
+    <p class="tiny" style="margin:7px 0 14px;text-align:center">${THUMBS[l.id]?`Sends your photo back with your words · ${senTxt()}`:'No photo stored, so numbers must be entered by hand'}</p>
+    <div id="ebreak">${items?breakdownHTML(items,l.id,true):''}</div>
     <hr>
     <p class="tiny" style="margin:0 0 10px">Or set the numbers yourself:</p>
     <div class="row" style="gap:8px">
@@ -1377,14 +1658,44 @@ function openEdit(l){
     <button class="btn full" onclick="saveEdit('${l.id}')">Save</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
-function breakdownHTML(items){
-  return `<div class="hint" style="font-size:12.5px"><b>Broken down as:</b>
-    ${items.map(i=>`<div class="swaprow" style="padding:5px 0;border:0"><span>${i.name}</span>
-      <span class="sv" style="color:var(--ink2)">${Math.round(i.kcal||0)} kcal · ${(+i.sat||0).toFixed(1)}g sat</span></div>`).join('')}</div>`;
+function breakdownHTML(items, id, editable){
+  if(!items||!items.length) return '';
+  const eat=itemsTotal(items), plate=itemsTotal(items,'present');
+  const partial=Math.abs(eat.kcal-plate.kcal)>1;
+  return `<div class="bd">
+    <div class="bdh">What was there, and what you ate</div>
+    ${srcSummary(items)?`<div class="bdsrc">${srcSummary(items)}</div>`:''}
+    ${items.map((i,ix)=>`<div class="bdrow">
+      <div class="bdn">${i.name} ${srcBadge(i.src)}
+        <small>${Math.round(i.per.kcal)} kcal · ${fmt(i.per.sat)}g sat per ${i.unit} · ${+i.present.toFixed(2)} there</small></div>
+      ${editable?`<div class="stp">
+        <button onclick="bumpItem('${id}',${ix},-0.5)" aria-label="less">−</button>
+        <span>${+i.eaten.toFixed(2)}</span>
+        <button onclick="bumpItem('${id}',${ix},0.5)" aria-label="more">+</button></div>`
+       :`<span class="bdq">×${+i.eaten.toFixed(2)}</span>`}
+      <span class="bdv">${Math.round(i.per.kcal*i.eaten)}<small>kcal</small></span>
+    </div>`).join('')}
+    <div class="bdtot"><span>You ate <b>${Math.round(eat.kcal)} kcal · ${fmt(eat.sat)}g sat</b></span>
+      ${partial?`<span class="tiny">whole plate ${Math.round(plate.kcal)} kcal · ${fmt(plate.sat)}g</span>`:''}</div>
+  </div>`;
+}
+function srcBadge(s){
+  if(s==='measured') return '<span class="sb meas">measured</span>';
+  if(s==='saved')    return '<span class="sb save">your food</span>';
+  return '<span class="sb newb">new</span>';
+}
+function bumpItem(id,ix,d){
+  const l=S.logs.find(x=>x.id===id); if(!l||!l.items||!l.items[ix]) return;
+  const i=l.items[ix];
+  i.eaten=Math.max(0, Math.round((i.eaten+d)*100)/100);
+  applyItems(l); save(); render();
+  const sheetOpen=document.getElementById('e_kcal');
+  if(sheetOpen){ openEdit(l); } else { showFlash(flashFor(id)); }
 }
 async function reEstimate(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
   const hint=document.getElementById('e_n').value.trim();
+  l.said=hint;
   if(!hint){ alert('Describe what it was first.'); return; }
   if(!activeKey()){ alert('Connect a provider in Settings first.'); return; }
   const btn=event&&event.target; if(btn){ btn.textContent='Re-estimating…'; btn.disabled=true; }
@@ -1395,16 +1706,18 @@ async function reEstimate(id){
     const out=await identify(img, hint);
     if(out.notFood) throw new Error('It still cannot see food in that photo.');
     S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-    reconcile(out); learnFrom(out);
-    const mt=matchDish(out.name);
-    if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.matched=d.n; }
+    learnFrom(out);
+    const mt=safeMatch(out);
+    if(!mt) reconcile(out);
+    if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.fru=d.fru||0; out.matched=d.n; }
     for(const [k,el] of [['kcal','e_kcal'],['sat','e_sat'],['na','e_na'],['sug','e_sug'],['pur','e_pur']])
       document.getElementById(el).value = (k==='sat'||k==='sug')? (+out[k]).toFixed(1) : Math.round(out[k]);
     document.getElementById('e_n').value = out.name||hint;
     if(out.meal) { const s=document.getElementById('e_meal'); if(s) s.value=out.meal; }
     l.pending={seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], note:out.note||''};
+    l.items=out.items||[]; if(l.items.length) applyItems(l);
     document.getElementById('ebreak').innerHTML =
-      (out.items&&out.items.length? breakdownHTML(out.items) : '') +
+      (out.items&&out.items.length? breakdownHTML(out.items,l.id,true) : '') +
       `<div class="hint good" style="font-size:12.5px"><b>Re-estimated.</b> ${out.portionSeen||''}${out.matched?` · matched to measured data for ${out.matched}`:''}${out.note?'<br>'+out.note:''}</div>`;
   }catch(e){
     document.getElementById('ebreak').innerHTML=`<div class="hint bad" style="font-size:12.5px">Couldn't re-estimate — ${String(e.fix||e.message||e).slice(0,140)}</div>`;
@@ -1418,8 +1731,19 @@ function saveEdit(id){
   l.meal=document.getElementById('e_meal').value;
   const nd=document.getElementById('e_date'), nt=document.getElementById('e_time');
   if(nd&&nt){ l.ts=tsFrom(nd.value,nt.value); l.date=todayKey(new Date(l.ts)); }
-  l.kcal=v('e_kcal'); l.sat=v('e_sat'); l.na=v('e_na'); l.sug=v('e_sug'); l.pur=v('e_pur');
-  l.base={kcal:l.kcal,sat:l.sat,na:l.na,sug:l.sug,pur:l.pur}; l.frac=1;
+  const typed={kcal:v('e_kcal'),sat:v('e_sat'),na:v('e_na'),sug:v('e_sug'),pur:v('e_pur')};
+  if(l.items&&l.items.length){
+    const t=itemsTotal(l.items);
+    if(Math.abs(t.kcal-typed.kcal)>Math.max(20,t.kcal*0.05)){
+      // typed a different total than the components imply — drop to a plain entry
+      if(confirm('Those numbers don\'t match the breakdown. Keep your numbers and discard the item breakdown?')) l.items=[];
+      else { applyItems(l); }
+    }
+  }
+  if(!l.items||!l.items.length){
+    l.kcal=typed.kcal; l.sat=typed.sat; l.na=typed.na; l.sug=typed.sug; l.pur=typed.pur;
+    l.base={...typed,fru:l.fru||0}; l.frac=1;
+  } else applyItems(l);
   if(l.pending){ l.seen=l.pending.seen||l.seen; l.matched=l.pending.matched||''; l.items=l.pending.items||[]; delete l.pending; }
   l.auto=false; editing=null;
   save(); closeSheet(); cur=l.date; render(); showFlash(flashFor(id));
@@ -1464,7 +1788,17 @@ ${hint? `\n**THE PERSON HAS TOLD YOU WHAT THIS IS: "${hint}"**\nTrust that compl
 ${recentMealContext()}
 Keep every string short. List at most 6 components. Do not add commentary outside the JSON.
 
-**If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items" with its own numbers. Give each a "qty" (how many units) and a "unit" (what one unit is), and let its kcal/sat/etc cover the whole qty. Name components in the SINGULAR ("banana", not "2 bananas"). Make the top-level kcal/sat/na/sug/pur the SUM of all components. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
+**If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items". For each one give:
+- "unit": what ONE unit is ("1 mini roll", "500ml bottle", "1 medium")
+- "present": how many units are visible in the photo
+- "eaten": how many they actually ate — **only if they told you**; otherwise repeat "present"
+- kcal/sat/na/sug/fru/pur **PER SINGLE UNIT**, not for the whole quantity
+
+Name components in the SINGULAR ("prawn roll", not "3 prawn rolls"). Top-level kcal/sat/etc should be present × per-unit summed across components — the whole plate. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
+
+**"sug" means FREE SUGARS only, by the WHO definition** — sugars added by a manufacturer or cook, plus honey, syrups and fruit juice. It EXCLUDES sugars intrinsic to whole fruit and the lactose in milk and plain yoghurt. A banana contributes 0 free sugars; a glass of milk contributes 0; a sweetened drink contributes all of its sugar.
+
+**"fru" means grams of FRUCTOSE**, from every source including whole fruit — sucrose is half fructose, so count half of any sucrose. This person has gout and fructose is the sugar that raises uric acid, so report it even when it comes from fruit.
 
 Purine matters a little (they have gout, but it is secondary). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
 
@@ -1480,7 +1814,7 @@ Set confidence to "high" ONLY if you can clearly identify the dish AND judge the
 {"notFood":true,"saw":"what is actually in the photo, 3-6 words"}
 
 Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
-{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component, singular e.g. banana","qty":number,"unit":"e.g. 1 medium / 500ml bottle","kcal":number,"sat":number,"na":number,"sug":number,"pur":number}],"portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
+{"name":"dish name","kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number,"meal":"Breakfast|Lunch|Dinner|Late snack","items":[{"name":"component, singular","unit":"1 medium","present":number,"eaten":number,"kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number}],"portionSeen":"what you measured, e.g. a full bowl, roughly 200g","confidence":"high|low","why":"if confidence is low, what you're unsure about, one short phrase","note":"one short sentence on the biggest issue with this meal — usually saturated fat"}`}
     ]}]
   };
   let r;
@@ -1520,8 +1854,8 @@ Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
 
   if(o.notFood) return {notFood:true, saw:o.saw||''};
   return {name:o.name||'', kcal:Math.round(o.kcal||0), sat:+(o.sat||0), na:Math.round(o.na||0),
-          sug:+(o.sug||0), pur:Math.round(o.pur||0), note:o.note||'',
-          meal:o.meal||'', portionSeen:o.portionSeen||'', items:Array.isArray(o.items)?o.items:[],
+          sug:+(o.sug||0), fru:+(o.fru||0), pur:Math.round(o.pur||0), note:o.note||'',
+          meal:o.meal||'', portionSeen:o.portionSeen||'', items:resolveItems(normItems(o.items)),
           confidence:(o.confidence==='high'?'high':'low'), why:o.why||''};
 }
 /* The model names the dish; our own measured Malaysian data supplies the
@@ -1553,21 +1887,46 @@ function recentMealContext(){
 /* Anything the AI works out gets remembered, per unit, so the same food is
    free next time. Components are learned individually — "2 bananas" teaches
    the app what ONE banana is. */
+/* A component now stores what ONE unit is, how many were in front of you, and
+   how many you ate. Totals are always computed from those — never stored
+   independently — so a total can no longer contradict its own breakdown. */
+function normItems(raw){
+  if(!Array.isArray(raw)) return [];
+  return raw.map(i=>{
+    const present=Math.max(0.01, +i.present || +i.qty || 1);
+    const eaten=(i.eaten==null||i.eaten==='') ? present : Math.max(0,+i.eaten);
+    return {name:String(i.name||'').trim(), unit:i.unit||'1 serving', present, eaten,
+      per:{kcal:+i.kcal||0, sat:+i.sat||0, na:+i.na||0, sug:+i.sug||0, pur:+i.pur||0, fru:+i.fru||0}};
+  }).filter(i=>i.name);
+}
+function itemsTotal(items,useField){
+  const f=useField||'eaten', t={kcal:0,sat:0,na:0,sug:0,pur:0,fru:0};
+  for(const i of items||[]) for(const k in t) t[k]+=(i.per[k]||0)*(+i[f]||0);
+  return t;
+}
+function applyItems(e){
+  if(!e.items||!e.items.length) return e;
+  const t=itemsTotal(e.items);
+  e.kcal=Math.round(t.kcal); e.sat=+t.sat.toFixed(1); e.na=Math.round(t.na);
+  e.sug=+t.sug.toFixed(1); e.pur=Math.round(t.pur); e.fru=+t.fru.toFixed(1);
+  e.base={kcal:e.kcal,sat:e.sat,na:e.na,sug:e.sug,pur:e.pur,fru:e.fru}; e.frac=1;
+  return e;
+}
 function learnItem(name, qty, vals, unit){
   const n=(name||'').trim(); if(!n || n.length<2) return;
   const q=Math.max(0.01, +qty||1);
   const per={kcal:(+vals.kcal||0)/q, sat:(+vals.sat||0)/q, na:(+vals.na||0)/q,
-             sug:(+vals.sug||0)/q, pur:(+vals.pur||0)/q};
+             sug:(+vals.sug||0)/q, pur:(+vals.pur||0)/q, fru:(+vals.fru||0)/q};
   if(!per.kcal && !per.sat && !per.na) return;
   const key=normalise(n);
   let e=S.learned.find(x=>normalise(x.n)===key);
   if(e){                                  // average towards the newer estimate
-    for(const k of ['kcal','sat','na','sug','pur']) e[k]=+(((e[k]*e.uses)+per[k])/(e.uses+1)).toFixed(2);
+    for(const k of ['kcal','sat','na','sug','pur','fru']) e[k]=+(((e[k]*e.uses)+per[k])/(e.uses+1)).toFixed(2);
     e.uses++; e.ts=Date.now(); if(unit&&!e.srv) e.srv=unit;
   } else {
     S.learned.push({id:'L'+uid(), n:n, srv:unit||'1 serving', uses:1, ts:Date.now(),
       kcal:Math.round(per.kcal), sat:+per.sat.toFixed(1), na:Math.round(per.na),
-      sug:+per.sug.toFixed(1), pur:Math.round(per.pur), grade:'AI', g:'learned'});
+      sug:+per.sug.toFixed(1), pur:Math.round(per.pur), fru:+(per.fru||0).toFixed(1), grade:'AI', g:'learned'});
   }
   if(S.learned.length>400) S.learned.sort((a,b)=>b.uses-a.uses||b.ts-a.ts), S.learned.length=400;
 }
@@ -1575,20 +1934,44 @@ function learnItem(name, qty, vals, unit){
    the components — they're individually reasoned, the total is arithmetic it
    did in its head. */
 function reconcile(out){
-  if(!out || !out.items || out.items.length<2) return out;
-  const sum={kcal:0,sat:0,na:0,sug:0,pur:0};
-  for(const i of out.items) for(const k in sum) sum[k]+=(+i[k]||0);
-  if(!sum.kcal) return out;
-  const drift=Math.abs(sum.kcal-(+out.kcal||0))/Math.max(sum.kcal,1);
-  if(drift>0.1){
-    out.reconciled=Math.round(+out.kcal||0);
-    for(const k in sum) out[k]= (k==='sat'||k==='sug')? +sum[k].toFixed(1) : Math.round(sum[k]);
-  }
+  if(!out || !out.items || !out.items.length) return out;
+  const t=itemsTotal(out.items);
+  if(!t.kcal) return out;
+  const stated=+out.kcal||0;
+  if(Math.abs(t.kcal-stated)/Math.max(t.kcal,1) > 0.1) out.reconciled=Math.round(stated);
+  out.kcal=Math.round(t.kcal); out.sat=+t.sat.toFixed(1); out.na=Math.round(t.na);
+  out.sug=+t.sug.toFixed(1); out.pur=Math.round(t.pur); out.fru=+t.fru.toFixed(1);
   return out;
+}
+/* For each component, prefer a value you already have over a fresh guess.
+   Built-in measured data first, then your own saved foods, then the AI's
+   estimate — and say which, per component. Reusing a saved value also stops
+   the same food drifting a little every time it's re-estimated. */
+function resolveItems(items){
+  return (items||[]).map(i=>{
+    const m=matchDish(i.name);
+    if(m && m.score>=75){
+      const d=m.dish;
+      return {...i, name:d.n, unit:d.srv||i.unit,
+        per:{kcal:d.kcal||0, sat:d.sat||0, na:d.na||0, sug:d.sug||0, pur:d.pur||0, fru:d.fru||0},
+        src:(d.g==='learned'?'saved':'measured'), aiPer:i.per};
+    }
+    return {...i, src:'new'};
+  });
+}
+function srcSummary(items){
+  if(!items||!items.length) return '';
+  const n={saved:0,measured:0,new:0};
+  for(const i of items) n[i.src||'new']++;
+  const bits=[];
+  if(n.measured) bits.push(`${n.measured} from measured data`);
+  if(n.saved) bits.push(`${n.saved} from your saved foods`);
+  if(n.new) bits.push(`${n.new} new — added to your list`);
+  return bits.join(' · ');
 }
 function learnFrom(out){
   if(out.items && out.items.length){
-    for(const it of out.items) learnItem(it.name, it.qty||1, it, it.unit);
+    for(const it of out.items) if(it.src==='new') learnItem(it.name, 1, it.per, it.unit);
     if(out.items.length===1) return;
   } else if(out.name){ learnItem(out.name, 1, out); }
 }
@@ -1689,6 +2072,19 @@ function parseLoose(txt){
   try{ return JSON.parse(repairTruncated(t)); }catch(e){}
   return null;
 }
+/* Substituting our measured data is only valid when the photo is ONE dish and
+   the name really is that dish. A plate of several things can never be
+   described by a single saved food — that mistake wiped out whole meals. */
+function safeMatch(out){
+  if(out.items && out.items.length>1) return null;
+  const mt=matchDish(out.name);
+  if(!mt || mt.score<85) return null;
+  const a=normalise(out.name), b=normalise(mt.dish.n);
+  const aw=a.split(' ').filter(w=>w.length>2), bw=b.split(' ').filter(w=>w.length>2);
+  if(!aw.length||!bw.length) return null;
+  const covered=aw.filter(w=>bw.some(x=>wordHit(w,[x]))).length/aw.length;
+  return covered>=0.7 ? mt : null;          // the saved food must cover most of the name
+}
 function aiErr(kind,title,fix){ const e=new Error(title); e.kind=kind; e.title=title; e.fix=fix; return e; }
 
 /* ============================================================
@@ -1705,10 +2101,15 @@ const PROVIDERS={
     name:'Claude (Anthropic)', url:'https://api.anthropic.com/v1/messages',
     keyName:'Anthropic API key', keyWhere:'console.anthropic.com → API keys → Create Key',
     keyPrefix:'sk-ant-',
+    /* Cost per photo. Published rates (platform.claude.com/docs, Aug 2026):
+       Haiku 4.5 $1/$5, Sonnet 5 $2/$10, Opus 5 $5/$25 per million in/out.
+       One photo ≈ 810 image tokens (900px longest side ÷750) + ~1,150 prompt
+       + ~600 output. Sanity check: on Opus with the old 3,500-token dish table
+       this predicts $0.042/photo — and 3 photos really did cost $0.12. */
     models:[
-      {id:'claude-haiku-4-5-20251001', n:'Haiku 4.5 — cheapest', usd:0.0024},
-      {id:'claude-sonnet-5',           n:'Sonnet 5 — balanced',  usd:0.0060},
-      {id:'claude-opus-5',             n:'Opus 5 — most accurate', usd:0.0150}
+      {id:'claude-haiku-4-5-20251001', n:'Haiku 4.5 — cheapest', usd:0.0050},
+      {id:'claude-sonnet-5',           n:'Sonnet 5 — balanced',  usd:0.0100},
+      {id:'claude-opus-5',             n:'Opus 5 — most accurate', usd:0.0250}
     ]},
   ilmu:{
     name:'ILMU (Malaysia)', url:'https://api.ilmu.ai/anthropic/v1/messages',
@@ -1716,13 +2117,21 @@ const PROVIDERS={
     keyPrefix:'sk-',
     note:'Data stays in Malaysia and is never used for training.',
     models:[
-      {id:'ilmu-vision-v1.3', n:'ILMU Vision 1.3 — cheapest', usd:0.0017},
-      {id:'ilmu-v3.1',        n:'ILMU 3.1 — flagship',        usd:0.0040}
+      /* YTL AI Labs does not publish API rates — ytlailabs.com says
+         "Contact Us for API Pricing". usd:null means the app shows
+         "rate not published" rather than inventing a number. Model IDs are
+         unconfirmed too: check them in your ILMU console before relying on this. */
+      {id:'ilmu-vision-v1.3', n:'ILMU Vision 1.3 — cheapest', usd:null},
+      {id:'ilmu-v3.1',        n:'ILMU 3.1 — flagship',        usd:null}
     ]}
 };
 function prov(){ return PROVIDERS[S.provider||'anthropic']; }
 function curModel(){ const p=prov(); return S.model && p.models.some(m=>m.id===S.model) ? S.model : p.models[0].id; }
-function modelCost(){ const p=prov(); const m=p.models.find(x=>x.id===curModel()); return m?m.usd:0; }
+function modelCost(){ const p=prov(); const m=p.models.find(x=>x.id===curModel()); return (m&&m.usd!=null)?m.usd:0; }
+function costKnown(){ const p=prov(); const m=p.models.find(x=>x.id===curModel()); return !!(m&&m.usd!=null); }
+/* "1.1 sen" when we have a published rate, an honest shrug when we don't. */
+function senTxt(){ return costKnown() ? `${(modelCost()*470).toFixed(1)} sen` : 'an unpublished rate'; }
+function monthTxt(){ return costKnown() ? `RM ${(modelCost()*4.7*3*30).toFixed(2)} a month` : 'a rate ILMU has not published'; }
 function activeKey(){ return (S.provider==='ilmu' ? S.ilmuKey : S.apiKey)||''; }
 
 const GH='https://api.github.com';
@@ -1911,6 +2320,28 @@ async function refreshPersistStat(){
   try{ el.textContent = (navigator.storage&&navigator.storage.persisted) ? ((await navigator.storage.persisted())?'yes':'not granted') : 'unsupported'; }
   catch(e){ el.textContent='unknown'; }
 }
+/* Entries logged before the fix may have had their totals replaced by a single
+   saved food. Find them and rebuild from their own components. */
+function auditLogs(){
+  const bad=[];
+  for(const l of S.logs){
+    if(!l.items||!l.items.length) continue;
+    if(!l.items[0].per) continue;                 // old shape, can't verify
+    const t=itemsTotal(l.items);
+    if(!t.kcal) continue;
+    if(Math.abs(t.kcal-(+l.kcal||0)) > Math.max(25, t.kcal*0.1)) bad.push({l,should:Math.round(t.kcal)});
+  }
+  return bad;
+}
+function runAudit(){
+  const bad=auditLogs();
+  if(!bad.length){ alert('Checked every entry — all totals agree with their breakdowns.'); return; }
+  const lines=bad.slice(0,8).map(b=>`• ${b.l.name}: shows ${Math.round(b.l.kcal)} kcal, components say ${b.should}`).join('\n');
+  if(!confirm(`${bad.length} entr${bad.length===1?'y':'ies'} disagree with their own breakdown:\n\n${lines}${bad.length>8?'\n…':''}\n\nRebuild them from their components?`)) return;
+  for(const b of bad){ applyItems(b.l); b.l.mismatch=false; b.l.matched=''; }
+  save(); render();
+  alert(`Fixed ${bad.length}.`);
+}
 function exportData(){
   const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a');
@@ -1956,7 +2387,10 @@ readHashKeys();
 // also handle tapping the bookmark while the app is already open
 window.addEventListener('hashchange', readHashKeys);
 (async()=>{ try{ const all=await IDB.entries();
-  for(const k of Object.keys(all)) THUMBS[k]=all[k].thumb||all[k].full;
+  for(const k of Object.keys(all)){
+    if(k.startsWith('food:')) FOODPIC[k.slice(5)]=all[k].thumb||all[k].full;
+    else THUMBS[k]=all[k].thumb||all[k].full;
+  }
   // migrate any photos still living in localStorage from older builds
   let moved=0;
   for(const l of S.logs){ if(l.photo){ await IDB.put(l.id,{thumb:l.photo,full:l.photo,ts:l.ts});
