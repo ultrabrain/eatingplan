@@ -231,6 +231,12 @@ hr{border:0;border-top:1px solid var(--grid);margin:16px 0}
 .stp{display:flex;align-items:center;gap:2px;flex:none}
 .stp button{width:26px;height:26px;border-radius:7px;background:var(--grid);font-size:16px;line-height:1;color:var(--ink)}
 .stp span{min-width:30px;text-align:center;font-size:13px;font-weight:650;font-variant-numeric:tabular-nums}
+/* Typed quantity. 46px fits "12.5" and clears the 44px touch-target minimum. */
+.stpv{width:46px;height:28px;padding:0 3px;text-align:center;border:1px solid var(--ring);
+  border-radius:7px;background:var(--raised);color:var(--ink);
+  font-size:14px;font-weight:650;font-variant-numeric:tabular-nums;font-family:inherit}
+.stpv:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(42,120,214,.18)}
+.stpv.bad{border-color:var(--crit);box-shadow:0 0 0 2px rgba(208,59,59,.18)}
 .bdtot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid var(--axis);font-size:13px}
 .pq{margin-top:11px;padding-top:10px;border-top:1px solid var(--ring)}
 .pql{font-size:12px;font-weight:650;color:var(--ink2);display:block;margin-bottom:7px}
@@ -431,7 +437,7 @@ function slotSuggestion(ts,dateKey){
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='27';
+const BUILD='28';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -689,11 +695,11 @@ function renderToday(){
         <div class="entry">
           <span class="t">${new Date(l.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
           ${THUMBS[l.id]?`<img class="thumb" src="${THUMBS[l.id]}" alt="" onclick="viewPhoto('${l.id}')" style="cursor:pointer">`:''}
-          <span class="e-nm">${l.name}${(l.qty||1)!==1?` <span class="tiny">×${l.qty}</span>`:''}
+          <span class="e-nm">${esc(l.name)}${(l.qty||1)!==1?` <span class="tiny">×${l.qty}</span>`:''}
             ${l.frac!=null&&l.frac!==1?`<span class="pill warn" style="margin-left:5px">${(PORTIONS.find(p=>p[0]===l.frac)||[,''])[1]}</span>`:''}
             ${l.auto?'<span class="pill ok" style="margin-left:5px">AI</span>':''}
             <small>${Math.round(l.kcal*(l.qty||1))} kcal · <b>${fmt(l.sat*(l.qty||1))}g sat</b> · ${Math.round(l.na*(l.qty||1))}mg Na</small>
-            ${(l.items&&l.items.length)?`<small style="color:var(--muted)">${l.items.map(i=>`${+(+i.eaten||0).toFixed(2)}× ${i.name}`).join(' · ')}</small>`:''}</span>
+            ${(l.items&&l.items.length)?`<small style="color:var(--muted)">${l.items.map(i=>`${+(+i.eaten||0).toFixed(2)}× ${esc(i.name)}`).join(' · ')}</small>`:''}</span>
           <button class="del" onclick="editLog('${l.id}')" aria-label="Edit">✎</button>
           <button class="del" onclick="delLog('${l.id}')" aria-label="Delete">×</button>
         </div>`).join('');
@@ -729,7 +735,7 @@ function renderAdd(){
     <p class="tiny" style="margin:8px 0 0;text-align:center">Scan a gel, bar or drink once and it's in your list for good.<br>Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
   </div>
   <div class="card">
-    <input class="search" id="q" placeholder="Search your dishes…" value="${q}" oninput="q=this.value;renderDishList()">
+    <input class="search" id="q" placeholder="Search your dishes…" value="${esc(q)}" oninput="q=this.value;renderDishList()">
     <div class="chips" id="chips">
       ${['all',...Object.keys(GROUPS)].map(k=>`<button class="chip ${filter===k?'on':''}" onclick="filter='${k}';renderAdd()">${k==='all'?'All':GROUPS[k]}</button>`).join('')}
     </div>
@@ -755,7 +761,7 @@ function renderDishList(){
     const c = worst>60?'var(--crit)':worst>=35?'var(--warn)':'var(--good)';
     return `<button class="dish" onclick="openLog('${d.id}')">
       ${FOODPIC[d.id]?`<img class="fthumb" src="${FOODPIC[d.id]}" alt="">`:`<span class="flag" style="background:${c}"></span>`}
-      <span class="info"><span class="nm">${d.n}${d.g==='learned'?' <span class="pill ok" style="font-size:9.5px;padding:1px 5px">saved</span>':''}</span>
+      <span class="info"><span class="nm">${esc(d.n)}${d.g==='learned'?' <span class="pill ok" style="font-size:9.5px;padding:1px 5px">saved</span>':''}</span>
         <span class="sub">${d.srv?d.srv+' · ':''}${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na${d.uses>1?` · used ${d.uses}×`:''}</span></span>
       <span class="add">+</span></button>`;
   }).join('') + `<button class="btn ghost full" style="margin-top:12px" onclick="openCustom()">Something else</button>`;
@@ -798,7 +804,7 @@ function renderTrends(){
       const top=arr.slice().sort((a,b)=>b[m]-a[m]).slice(0,3).filter(x=>x[m]>0);
       if(!top.length) continue;
       h+=`<h3 style="margin-top:14px">${met.n}</h3>`;
-      h+=top.map(x=>`<div class="swaprow"><span>${x.n} <span class="tiny">×${x.c}</span></span>
+      h+=top.map(x=>`<div class="swaprow"><span>${esc(x.n)} <span class="tiny">×${x.c}</span></span>
         <span class="sv" style="color:var(--ink2)">${fmt(x[m],m)}${met.u}</span></div>`).join('');
     }
     h+=`</div>`;
@@ -956,7 +962,20 @@ function foodBefore(date){
    ============================================================ */
 const sheet=document.getElementById('sheet'), sbg=document.getElementById('sbg');
 function openSheet(html){ sheet.innerHTML=`<div class="grab"></div>`+html; sheet.classList.add('on'); sbg.classList.add('on'); }
-function closeSheet(){ sheet.classList.remove('on'); sbg.classList.remove('on'); }
+function closeSheet(){
+  // Leaving the edit sheet without saving throws the provisional changes away.
+  // saveEdit() clears `editing` before it closes, so a real save never lands here.
+  let reverted=false;
+  if(editing && editSnap && editSnap.id===editing){
+    const ix=S.logs.findIndex(x=>x.id===editSnap.id);
+    if(ix>=0){ S.logs[ix]=JSON.parse(JSON.stringify(editSnap.data)); save(); reverted=true; }
+  }
+  editing=null; editSnap=null;
+  sheet.classList.remove('on'); sbg.classList.remove('on');
+  // Only redraw when something actually changed back — render() scrolls to top,
+  // so closing any other sheet must not trigger it.
+  if(reverted){ render(); showFlash(''); }
+}
 sbg.onclick=closeSheet;
 
 let pendingQty=1, pendingDish=null, pendingPhoto=null, pendingThumb=null, pendingFull=null;
@@ -996,6 +1015,7 @@ async function dropPhotoOnly(id){
   delete THUMBS[id]; await IDB.del(id); save(); render();
 }
 async function deleteEntry(id){
+  if(editing===id || (editSnap&&editSnap.id===id)){ editing=null; editSnap=null; }
   S.logs=S.logs.filter(x=>x.id!==id);
   delete THUMBS[id]; await IDB.del(id);
   save(); render(); showFlash('');
@@ -1015,7 +1035,7 @@ function setPortion(id,f){
   l.base=b; l.frac=f; l.fru=+((b.fru||0)*f).toFixed(1);
   l.kcal=Math.round(b.kcal*f); l.sat=+(b.sat*f).toFixed(1);
   l.na=Math.round(b.na*f); l.sug=+(b.sug*f).toFixed(1); l.pur=Math.round(b.pur*f);
-  save(); render(); showFlash(flashFor(id));
+  save(); render(); refreshAfterEdit(id);
 }
 function flashFor(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return '';
@@ -1024,9 +1044,9 @@ function flashFor(id){
   return `<div class="flash ${satPct>50||naPct>60?'warn':'ok'}">
     <div class="fr">${THUMBS[id]?`<img class="fimg" src="${THUMBS[id]}" alt="" onclick="viewPhoto('${id}')">`:''}
       <div style="flex:1;min-width:0">
-        <div class="fh">Logged — ${l.name} <span class="tiny" style="font-weight:400">(${l.meal||''})</span></div>
-        ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${l.seen}</div>`:''}
-        ${l.matched?`<div class="fs" style="color:var(--good)">✓ Used your saved figures for <b>${l.matched}</b> — not a fresh estimate</div>`:''}
+        <div class="fh">Logged — ${esc(l.name)} <span class="tiny" style="font-weight:400">(${esc(l.meal||'')})</span></div>
+        ${l.seen?`<div class="fs" style="color:var(--muted)">In the photo: ${esc(l.seen)}</div>`:''}
+        ${l.matched?`<div class="fs" style="color:var(--good)">✓ Used your saved figures for <b>${esc(l.matched)}</b> — not a fresh estimate</div>`:''}
         ${(!l.matched && !l.free && l.auto && !(l.items&&l.items.length))?`<div class="fs" style="color:var(--muted)">New to your list — estimated by AI and saved for next time</div>`:''}
         ${l.free?`<div class="fs" style="color:var(--good)">✓ Built from your saved foods — no AI, no cost</div>`:''}
         ${l.meal==='During workout'?`<div class="fs" style="color:var(--muted)">Taken during exercise — working muscle clears this sugar far better than sitting at a desk would.</div>`:''}
@@ -1034,8 +1054,7 @@ function flashFor(id){
       </div></div>
     ${(l.items&&l.items.length)
       ? breakdownHTML(l.items,id,true)
-      : `<div class="pq"><span class="pql">How much did you actually eat?</span>
-      <div class="pqr">${PORTIONS.map(([v,lab])=>`<button class="${f===v?'on':''}" onclick="setPortion('${id}',${v})">${lab}</button>`).join('')}</div></div>`}
+      : portionRow(id, f, 'setPortion', 'How much did you actually eat?')}
     ${l.mismatch?`<div class="fs" style="margin-top:8px;color:var(--crit)"><b>Totals didn't match the breakdown</b> — recomputed from the components.</div>`:''}
     ${l.date!==todayKey()?`<div class="fs" style="margin-top:7px;color:var(--serious)">Logged to <b>${prettyDate(l.date)}</b>, from the photo's own timestamp.
       <button class="lnk" onclick="moveToToday('${id}')">Move to today</button></div>`:''}
@@ -1049,7 +1068,7 @@ function openLog(id){
   pendingDish=d; pendingQty=1;
   const tg=S.targets;
   const s=SWAPS.find(x=>x[0]===id);
-  openSheet(`<h2>${d.n}</h2><p class="muted" style="margin:-4px 0 12px">${d.srv} · <span class="tiny">${d.grade==='M'?'lab-measured':d.grade==='C'?'calculated from ingredients':d.grade==='M/E'?'part measured':'estimated ±30%'}</span></p>
+  openSheet(`<h2>${esc(d.n)}</h2><p class="muted" style="margin:-4px 0 12px">${esc(d.srv)} · <span class="tiny">${d.grade==='M'?'lab-measured':d.grade==='C'?'calculated from ingredients':d.grade==='M/E'?'part measured':'estimated ±30%'}</span></p>
     ${METRICS.map(m=>{const pct=d[m.k]/tg[m.k]*100;
       return `<div class="swaprow"><span>${m.n}</span><span style="margin-left:auto;font-variant-numeric:tabular-nums">${fmt(d[m.k],m.k)}${m.u}
         <span class="pill ${statusOf(pct)}" style="margin-left:6px">${Math.round(pct)}%</span></span></div>`}).join('')}
@@ -1085,7 +1104,7 @@ function openCustom(pref){
   pref=pref||{};
   openSheet(`<h2>${pref.name?'Check these numbers':'Add manually'}</h2>
     ${pref.note?`<div class="hint">${pref.note}</div>`:''}
-    <div class="fld"><label>What was it</label><input id="c_n" value="${pref.name||''}" placeholder="e.g. Bak kut teh"></div>
+    <div class="fld"><label>What was it</label><input id="c_n" value="${esc(pref.name||'')}" placeholder="e.g. Bak kut teh"></div>
     <div class="row" style="gap:8px">
       <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="c_kcal" value="${pref.kcal??''}"></div>
       <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="c_sat" value="${pref.sat??''}"></div>
@@ -1201,11 +1220,11 @@ function scanLabel(input){
     try{
       const out=await readPanel(big);
       S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-      openSheet(`<h2>${out.name||'New food'}</h2>
+      openSheet(`<h2>${esc(out.name||'New food')}</h2>
         <div class="fr" style="margin:-4px 0 12px"><img class="fimg" src="${thumb}" alt="">
           <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${out.brand?out.brand+' · ':''}per ${out.serving||'serving'}</div></div></div>
-        <div class="fld"><label>Name</label><input id="pl_n" value="${(out.name||'').replace(/"/g,'&quot;')}"></div>
-        <div class="fld"><label>One serving is</label><input id="pl_s" value="${(out.serving||'1 serving').replace(/"/g,'&quot;')}"></div>
+        <div class="fld"><label>Name</label><input id="pl_n" value="${esc(out.name||'')}"></div>
+        <div class="fld"><label>One serving is</label><input id="pl_s" value="${esc(out.serving||'1 serving')}"></div>
         <div class="row" style="gap:8px">
           <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="pl_kcal" value="${Math.round(out.kcal||0)}"></div>
           <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="pl_sat" value="${+out.sat||0}"></div></div>
@@ -1613,12 +1632,12 @@ function onPhoto(input, fromLibrary){
 
 async function viewPhoto(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
-  openSheet(`<h2>${l.name}</h2><p class="muted" style="margin:-4px 0 12px">${prettyDate(l.date)} · ${l.meal||''}</p>
+  openSheet(`<h2>${esc(l.name)}</h2><p class="muted" style="margin:-4px 0 12px">${prettyDate(l.date)} · ${esc(l.meal||'')}</p>
     <div style="text-align:center;padding:26px 0"><span class="spin"></span></div>`);
   const rec=await IDB.get(id);
   const img=rec? (rec.full||rec.thumb) : THUMBS[id];
   const kb=img? Math.round(img.length/1400) : 0;
-  openSheet(`<h2>${l.name}</h2><p class="muted" style="margin:-4px 0 12px">${prettyDate(l.date)} · ${l.meal||''}${l.seen?' · '+l.seen:''}</p>
+  openSheet(`<h2>${esc(l.name)}</h2><p class="muted" style="margin:-4px 0 12px">${prettyDate(l.date)} · ${esc(l.meal||'')}${l.seen?' · '+esc(l.seen):''}</p>
     ${img?`<img src="${img}" style="width:100%;border-radius:12px;border:1px solid var(--ring)" alt="">`:'<p class="muted">No photo stored for this entry.</p>'}
     <p class="tiny" style="margin:10px 0 14px">${img?`~${kb} KB, stored on this phone`:''}. Backed up to your private gist if backup is on.</p>
     <button class="btn ghost full" onclick="dropPhotoOnly('${id}');closeSheet()">Delete the photo, keep the entry</button>
@@ -1629,9 +1648,14 @@ function dropPhoto(id){ dropPhotoOnly(id); }
 async function editLog(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
   editing=id;                                   // photo stays put in IndexedDB
+  /* Everything done in this sheet — re-estimates, steppers, portion buttons —
+     is provisional until Save. Snapshot the entry so Cancel can put it back
+     exactly as it was. Taken here and nowhere else: openEdit() is also called
+     to redraw mid-edit, and snapshotting there would capture the edits. */
+  editSnap={id, data:JSON.parse(JSON.stringify(l))};
   openEdit(l);
 }
-let editing=null;
+let editing=null, editSnap=null;
 
 function openEdit(l){
   const items=(l.items&&l.items.length)? l.items : null;
@@ -1646,7 +1670,9 @@ function openEdit(l){
       <p class="tiny" style="margin:6px 0 0">Describe it however you like — portion, ingredients, how it was cooked. The more you say, the better the re-estimate.</p></div>
     <button class="btn full" onclick="reEstimate('${l.id}')" ${THUMBS[l.id]?'':'disabled style="opacity:.5"'}>Re-estimate from this description</button>
     <p class="tiny" style="margin:7px 0 14px;text-align:center">${THUMBS[l.id]?`Sends your photo back with your words · ${senTxt()}`:'No photo stored, so numbers must be entered by hand'}</p>
-    <div id="ebreak">${items?breakdownHTML(items,l.id,true):''}</div>
+    <div id="ebreak">${items
+      ? breakdownHTML(items,l.id,true)
+      : portionRow(l.id, (l.frac==null?1:l.frac), 'setPortion', 'How much of it did you eat?')}</div>
     <hr>
     <p class="tiny" style="margin:0 0 10px">Or set the numbers yourself:</p>
     <div class="row" style="gap:8px">
@@ -1671,12 +1697,17 @@ function breakdownHTML(items, id, editable){
   return `<div class="bd">
     <div class="bdh">What was there, and what you ate</div>
     ${srcSummary(items)?`<div class="bdsrc">${srcSummary(items)}</div>`:''}
+    ${editable?portionRow(id, itemsFrac(items), 'setPortionItems', 'Ate a share of the whole lot?'):''}
     ${items.map((i,ix)=>`<div class="bdrow">
-      <div class="bdn">${i.name} ${srcBadge(i.src)}
-        <small>${Math.round(i.per.kcal)} kcal · ${fmt(i.per.sat)}g sat per ${i.unit} · ${+i.present.toFixed(2)} there</small></div>
+      <div class="bdn">${esc(i.name)} ${srcBadge(i.src)}
+        <small>${Math.round(i.per.kcal)} kcal · ${fmt(i.per.sat)}g sat per ${esc(i.unit)} · ${+i.present.toFixed(2)} there</small></div>
       ${editable?`<div class="stp">
         <button onclick="bumpItem('${id}',${ix},-0.5)" aria-label="less">−</button>
-        <span>${+i.eaten.toFixed(2)}</span>
+        <input class="stpv" type="text" inputmode="decimal" value="${+i.eaten.toFixed(2)}"
+          onfocus="this.select()"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          onchange="setItemQty('${id}',${ix},this.value,this)"
+          aria-label="How many ${esc(i.name)} you ate">
         <button onclick="bumpItem('${id}',${ix},0.5)" aria-label="more">+</button></div>`
        :`<span class="bdq">×${+i.eaten.toFixed(2)}</span>`}
       <span class="bdv">${Math.round(i.per.kcal*i.eaten)}<small>kcal</small></span>
@@ -1690,13 +1721,92 @@ function srcBadge(s){
   if(s==='saved')    return '<span class="sb save">your food</span>';
   return '<span class="sb newb">new</span>';
 }
-function bumpItem(id,ix,d){
+/* Names and units come from the AI, so anything going into markup or an
+   attribute gets escaped. */
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+const MAX_UNITS=999;   // 12 chips is real; 1212 is a slipped finger.
+
+/* The quick portion buttons — All / ¾ / Half / ¼ / A taste. `frac` is the one
+   currently in effect, or null when the portions are uneven. */
+function portionRow(id, frac, fn, label){
+  return `<div class="pq"><span class="pql">${label}</span>
+    <div class="pqr">${PORTIONS.map(([v,lab])=>
+      `<button class="${frac!=null&&Math.abs(frac-v)<0.005?'on':''}" onclick="${fn}('${id}',${v})">${lab}</button>`
+    ).join('')}</div></div>`;
+}
+/* What single fraction describes the whole plate — or null if the components
+   were set to different shares, in which case no button should look active. */
+function itemsFrac(items){
+  if(!items||!items.length) return null;
+  let r=null;
+  for(const i of items){
+    if(!(i.present>0)) return null;
+    const q=i.eaten/i.present;
+    if(r===null) r=q; else if(Math.abs(q-r)>0.005) return null;
+  }
+  return r;
+}
+/* "I ate half of that" — scale every component off what was actually there,
+   not off its current value, so tapping Half twice doesn't give you a quarter. */
+function setPortionItems(id,f){
+  const l=S.logs.find(x=>x.id===id); if(!l||!l.items||!l.items.length) return;
+  for(const i of l.items) i.eaten=Math.max(0, Math.round(i.present*f*100)/100);
+  applyItems(l); save(); render(); refreshAfterEdit(id);
+}
+/* render() clears the flash card, and the edit sheet has to be rebuilt to show
+   new numbers. One helper so every quantity path redraws the same way. */
+function refreshAfterEdit(id){
+  const l=S.logs.find(x=>x.id===id); if(!l) return;
+  if(!document.getElementById('e_kcal')){ showFlash(flashFor(id)); return; }
+  // Carry across anything typed but not yet saved — rebuilding the sheet would
+  // otherwise silently throw away a half-written description.
+  const keep={};
+  for(const f of ['e_n','e_meal','e_date','e_time']){
+    const el=document.getElementById(f); if(el) keep[f]=el.value;
+  }
+  openEdit(l);
+  for(const f in keep){ const el=document.getElementById(f); if(el) el.value=keep[f]; }
+}
+
+/* The single place a component's quantity changes — typed or tapped. render()
+   wipes the flash card, so the redraw lives here too; splitting it across the
+   two callers is how one of them ends up silently losing the card. */
+function commitItemQty(id,ix,n){
   const l=S.logs.find(x=>x.id===id); if(!l||!l.items||!l.items[ix]) return;
   const i=l.items[ix];
-  i.eaten=Math.max(0, Math.round((i.eaten+d)*100)/100);
-  applyItems(l); save(); render();
-  const sheetOpen=document.getElementById('e_kcal');
-  if(sheetOpen){ openEdit(l); } else { showFlash(flashFor(id)); }
+  i.eaten=Math.max(0, Math.round(n*100)/100);
+  // You cannot have eaten more than was in front of you. If the AI undercounted
+  // the plate, then at least what you ate was there — otherwise the "whole
+  // plate" figure ends up smaller than "you ate", which reads as a bug.
+  if(i.eaten>i.present) i.present=i.eaten;
+  applyItems(l); save(); render(); refreshAfterEdit(id);
+}
+/* Typed quantity. Tapping + twenty-four times for a handful of tortilla chips
+   is absurd, so the number is editable directly. Commit on change/Enter, never
+   on keystroke — render() rebuilds the row and would steal focus mid-type. */
+function setItemQty(id,ix,raw,el){
+  const l=S.logs.find(x=>x.id===id); if(!l||!l.items||!l.items[ix]) return;
+  const i=l.items[ix];
+  const revert=()=>{ if(el){ el.value=+i.eaten.toFixed(2);
+    el.classList.add('bad'); setTimeout(()=>el.classList.remove('bad'),700); } };
+  // Accept a comma decimal, and a bare "." or "," as nothing typed yet.
+  const txt=String(raw==null?'':raw).trim().replace(',','.');
+  const n=Number(txt);
+  // Blank or nonsense snaps back rather than silently becoming 0 — a zero here
+  // would quietly drop this food's calories out of the day's totals.
+  if(txt==='' || !isFinite(n) || n<0){ revert(); return; }
+  if(n>MAX_UNITS){
+    alert(`${Math.round(n)} × ${i.unit} looks like a slip.\n\nIf you really ate that many, use the + button.`);
+    revert(); return;
+  }
+  commitItemQty(id,ix,n);
+}
+function bumpItem(id,ix,d){
+  const l=S.logs.find(x=>x.id===id); if(!l||!l.items||!l.items[ix]) return;
+  commitItemQty(id,ix,l.items[ix].eaten+d);
 }
 async function reEstimate(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
@@ -1712,7 +1822,6 @@ async function reEstimate(id){
     const out=await identify(img, hint);
     if(out.notFood) throw new Error('It still cannot see food in that photo.');
     S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-    learnFrom(out);
     const mt=safeMatch(out);
     if(!mt) reconcile(out);
     if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.fru=d.fru||0; out.matched=d.n; }
@@ -1720,7 +1829,7 @@ async function reEstimate(id){
       document.getElementById(el).value = (k==='sat'||k==='sug')? (+out[k]).toFixed(1) : Math.round(out[k]);
     document.getElementById('e_n').value = out.name||hint;
     if(out.meal) { const s=document.getElementById('e_meal'); if(s) s.value=out.meal; }
-    l.pending={seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], note:out.note||''};
+    l.pending={seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], note:out.note||'', out};
     l.items=out.items||[]; if(l.items.length) applyItems(l);
     document.getElementById('ebreak').innerHTML =
       (out.items&&out.items.length? breakdownHTML(out.items,l.id,true) : '') +
@@ -1750,8 +1859,13 @@ function saveEdit(id){
     l.kcal=typed.kcal; l.sat=typed.sat; l.na=typed.na; l.sug=typed.sug; l.pur=typed.pur;
     l.base={...typed,fru:l.fru||0}; l.frac=1;
   } else applyItems(l);
-  if(l.pending){ l.seen=l.pending.seen||l.seen; l.matched=l.pending.matched||''; l.items=l.pending.items||[]; delete l.pending; }
-  l.auto=false; editing=null;
+  let pendOut=null;
+  if(l.pending){ l.seen=l.pending.seen||l.seen; l.matched=l.pending.matched||'';
+    l.items=l.pending.items||[]; pendOut=l.pending.out||null; delete l.pending; }
+  // Learn the components only once you've accepted them — a re-estimate you
+  // cancelled should not leave its figures in your food library.
+  if(pendOut){ learnFrom(pendOut); }
+  l.auto=false; editing=null; editSnap=null;
   save(); closeSheet(); cur=l.date; render(); showFlash(flashFor(id));
 }
 function shrink(dataUrl,max,quality){
