@@ -362,7 +362,7 @@ const MEAL_ORDER=['Breakfast','Lunch','Dinner','Late snack'];
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='17';
+const BUILD='18';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -1287,7 +1287,7 @@ async function identify(dataUrl, hint){
   const b64=dataUrl.split(',')[1];
   const P=prov();
   const body={
-    model:curModel(), max_tokens:400,
+    model:curModel(), max_tokens:1500,
     messages:[{role:'user',content:[
       {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
       {type:'text',text:`Identify this meal and estimate its nutrition.
@@ -1295,6 +1295,8 @@ async function identify(dataUrl, hint){
 The person is Malaysian-Chinese, in Kuala Lumpur, and eats mostly Chinese, Japanese and Western food plus local hawker dishes. Name the dish the way a Malaysian would — "char kuey teow", "wantan mee kon lou", "siew yok rice", "nasi lemak", not a generic description.
 ${hint? `\n**THE PERSON HAS TOLD YOU WHAT THIS IS: "${hint}"**\nTrust that completely over your own reading of the photo — they ate it, you didn't. Use the photo only to judge how much is there. If their description mentions a quantity ("half a bowl", "two pieces"), honour it and set confidence high.\n` : ''}
 ${recentMealContext()}
+Keep every string short. List at most 6 components. Do not add commentary outside the JSON.
+
 **If the plate holds several distinct things** — rice plus two dishes, a mixed economy-rice plate, leftovers combined — break it down. Put each component in "items" with its own numbers, and make the top-level kcal/sat/na/sug/pur the SUM of them. If you can't separate them confidently, say so in "why" and set confidence low rather than guessing at a single blended number.
 
 Purine matters a little (they have gout, but it is secondary). Rough guide, mg per 100g: pork/beef 75–120 · chicken breast 141 · chicken thigh 123 · pork liver 285 · squid 170 · prawn 195 · sardine 210 · tuna 157 · salmon 119 · tofu 20–31 · eggs 0 · dairy 0 · vegetables 3–70 · rice 26. Long-boiled meat/bone BROTH is very high — a bowl of ramen or pork-noodle soup that is drunk adds 150–460mg on its own.
@@ -1339,10 +1341,15 @@ Otherwise reply with ONLY a JSON object, no other text and no markdown fences:
 
   const j=await r.json();
   const txt=(j.content||[]).map(c=>c.text||'').join('').trim();
-  const m=txt.match(/\{[\s\S]*\}/);
-  if(!m) throw aiErr('noparse','Couldn\'t read the reply', txt? ('It said: "'+txt.slice(0,150)+'"') : 'It returned nothing.');
-  let o; try{ o=JSON.parse(m[0]); }
-  catch(e){ throw aiErr('noparse','Couldn\'t read the reply','The reply wasn\'t valid JSON.'); }
+  const truncated = j.stop_reason==='max_tokens';
+  const o=parseLoose(txt);
+  if(!o){
+    if(!txt) throw aiErr('noparse','Empty reply','The model returned nothing. Try again.');
+    throw aiErr('noparse', truncated?'The reply was cut short':'Couldn\'t read the reply',
+      (truncated
+        ? 'The description ran past the length limit and the answer arrived incomplete. Try again, or describe the meal yourself with Type it in.'
+        : 'The model answered in prose instead of data. It said: "'+txt.slice(0,140)+'"'));
+  }
 
   if(o.notFood) return {notFood:true, saw:o.saw||''};
   return {name:o.name||'', kcal:Math.round(o.kcal||0), sat:+(o.sat||0), na:Math.round(o.na||0),
@@ -1409,6 +1416,48 @@ function matchDish(name){
     if(score>bestScore){ bestScore=score; best=d; }
   }
   return bestScore>=50? {dish:best,score:Math.round(bestScore)} : null;
+}
+/* Models sometimes wrap JSON in fences, prepend a sentence, or get cut off
+   mid-object. Recover from all three rather than throwing the whole reply away. */
+function balancedSlice(t){
+  let depth=0, inStr=false, esc=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(inStr){ if(esc) esc=false; else if(c==='\\') esc=true; else if(c==='"') inStr=false; continue; }
+    if(c==='"') inStr=true;
+    else if(c==='{'||c==='[') depth++;
+    else if(c==='}'||c===']'){ depth--; if(depth===0) return t.slice(0,i+1); }
+  }
+  return null;
+}
+function repairTruncated(t){
+  const stack=[]; let inStr=false, esc=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(inStr){ if(esc) esc=false; else if(c==='\\') esc=true; else if(c==='"') inStr=false; continue; }
+    if(c==='"') inStr=true;
+    else if(c==='{'||c==='[') stack.push(c==='{'?'}':']');
+    else if(c==='}'||c===']') stack.pop();
+  }
+  let out=t;
+  if(inStr) out+='"';                                    // close a dangling string
+  out=out.replace(/,\s*$/,'');                            // trailing comma
+  out=out.replace(/,\s*"[^"]*"\s*:\s*$/,'');             // half-written key
+  out=out.replace(/:\s*$/,':null');                       // key with no value
+  while(stack.length) out+=stack.pop();
+  return out;
+}
+function parseLoose(txt){
+  if(!txt) return null;
+  let t=String(txt).trim()
+    .replace(/^[^{]*?```(?:json)?\s*/i,'')                 // leading prose + fence
+    .replace(/```[\s\S]*$/,'');                           // trailing fence
+  const i=t.indexOf('{'); if(i<0) return null;
+  t=t.slice(i);
+  const bal=balancedSlice(t);
+  if(bal){ try{ return JSON.parse(bal); }catch(e){} }
+  try{ return JSON.parse(repairTruncated(t)); }catch(e){}
+  return null;
 }
 function aiErr(kind,title,fix){ const e=new Error(title); e.kind=kind; e.title=title; e.fix=fix; return e; }
 
