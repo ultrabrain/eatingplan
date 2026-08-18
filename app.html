@@ -94,6 +94,9 @@ header{position:sticky;top:0;z-index:20;background:var(--page);
 .dish .nm{font-weight:600;font-size:14.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dish .sub{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .dish .add{flex:none;width:30px;height:30px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:19px;line-height:1;font-weight:400}
+.dish .fdel{flex:none;width:28px;height:28px;margin-right:2px;border-radius:8px;background:transparent;
+  color:var(--muted);font-size:17px;line-height:1}
+.dish .fdel:active{background:var(--grid);color:var(--crit)}
 .flag{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
 
 /* logged entries */
@@ -138,8 +141,19 @@ nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--surface);
  :root:where(:not([data-theme="light"])) .pill.bad{color:#e66767}}
 .empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:13.5px}
 .bars{display:flex;align-items:flex-end;gap:3px;height:56px;margin:10px 0 4px}
-.bars .b{flex:1;background:var(--blue-l);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+/* The bar itself is only a few px wide on a phone, so the tap target is a
+   full-height column around it rather than the bar. */
+.bars .bw{flex:1;display:flex;align-items:flex-end;height:100%;cursor:pointer;
+  border-radius:4px;-webkit-tap-highlight-color:transparent}
+.bars .bw:active{background:var(--grid)}
+.bars .b{flex:1;background:var(--blue-l);border-radius:3px 3px 0 0;min-height:2px;position:relative;pointer-events:none}
 .bars .b.over{background:var(--crit)}
+.dd{display:flex;align-items:baseline;gap:8px;padding:9px 0;border-bottom:1px solid var(--ring)}
+.dd:last-of-type{border-bottom:0}
+.dd .ddt{font-size:11px;color:var(--muted);min-width:42px;font-variant-numeric:tabular-nums}
+.dd .ddn{flex:1;min-width:0;font-size:13.5px}
+.dd .ddv{font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ddshare{height:3px;border-radius:2px;background:var(--blue);margin-top:4px}
 .blabs{display:flex;gap:3px;font-size:9.5px;color:var(--muted);text-align:center}
 .blabs span{flex:1}
 .hint{background:rgba(42,120,214,.07);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:10px 12px;font-size:13px;margin:10px 0}
@@ -437,7 +451,7 @@ function slotSuggestion(ts,dateKey){
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='28';
+const BUILD='30';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -492,6 +506,16 @@ function load(){
    in place, dividing back out by qty to recover the per-unit numbers.
    Anything already in the new shape is left untouched. */
 function migrate(s){
+  /* Settings saved by an older build carry only the metrics that existed then.
+     load() assigns the saved object wholesale, so a metric added later (fructose)
+     arrives undefined — which prints "Target undefinedg" and, because
+     undefined*1.25 is NaN, collapses that chart's scale so its bars render
+     hundreds of percent tall and spill over the neighbouring cards. */
+  s.targets = Object.assign({}, DEFAULT_TARGETS, s.targets||{});
+  for(const k in DEFAULT_TARGETS){
+    const v=+s.targets[k];
+    if(!isFinite(v) || v<=0) s.targets[k]=DEFAULT_TARGETS[k];
+  }
   let fixed=0;
   for(const l of (s.logs||[])){
     if(!Array.isArray(l.items) || !l.items.length) continue;
@@ -576,6 +600,12 @@ function worksFor(k){ return (S.workouts||[]).filter(w=>w.date===k); }
 function burnFor(k){ return worksFor(k).reduce((s,w)=>s+(+w.kcal||0),0); }
 function isFuel(l){ return WORKOUT_SLOTS.includes(l.meal); }
 function fuelSugar(k){ return logsFor(k).filter(isFuel).reduce((s,l)=>s+(+l.sug||0)*(l.qty||1),0); }
+/* One definition of a metric's target, proof against a settings object saved
+   before that metric existed. */
+function targetFor(k){
+  const v=+((S.targets||{})[k]);
+  return (isFinite(v) && v>0) ? v : DEFAULT_TARGETS[k];
+}
 function totals(k){
   const t={kcal:0,sat:0,na:0,sug:0,pur:0,fru:0};
   for(const l of logsFor(k)) for(const m in t) t[m]+= (l[m]||0)*(l.qty||1);
@@ -730,9 +760,11 @@ function renderAdd(){
   let h = `<div class="card">
     <button class="btn full" onclick="openDescribe()">Describe what you ate</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('lbl').click()">Scan a product label</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('fitem').click()">Photograph a food item</button>
+    <input type="file" id="fitem" accept="image/*" style="display:none" onchange="scanFood(this)">
     <button class="btn ghost full" style="margin-top:8px" onclick="filter='learned';q='';renderAdd()">Your single items${(S.learned&&S.learned.length)?` (${S.learned.length})`:''}</button>
     <input type="file" id="lbl" accept="image/*" capture="environment" style="display:none" onchange="scanLabel(this)">
-    <p class="tiny" style="margin:8px 0 0;text-align:center">Scan a gel, bar or drink once and it's in your list for good.<br>Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
+    <p class="tiny" style="margin:8px 0 0;text-align:center">Scan a gel, bar or drink once and it's in your list for good. No panel to read — a bowl of soup, a kuih — photograph the food instead.<br>Free when everything's already in your list${S.learned&&S.learned.length?` — ${S.learned.length} food${S.learned.length===1?'':'s'} saved so far`:''}</p>
   </div>
   <div class="card">
     <input class="search" id="q" placeholder="Search your dishes…" value="${esc(q)}" oninput="q=this.value;renderDishList()">
@@ -759,11 +791,15 @@ function renderDishList(){
   el.innerHTML = list.map(d=>{
     const worst = Math.max(d.sat/tg.sat, d.na/tg.na, d.pur/tg.pur, d.sug/tg.sug)*100;
     const c = worst>60?'var(--crit)':worst>=35?'var(--warn)':'var(--good)';
-    return `<button class="dish" onclick="openLog('${d.id}')">
+    // A div, not a button — the delete control nests inside it, and a button
+    // inside a button is invalid and behaves unpredictably on mobile Safari.
+    return `<div class="dish" role="button" tabindex="0" onclick="openLog('${d.id}')">
       ${FOODPIC[d.id]?`<img class="fthumb" src="${FOODPIC[d.id]}" alt="">`:`<span class="flag" style="background:${c}"></span>`}
       <span class="info"><span class="nm">${esc(d.n)}${d.g==='learned'?' <span class="pill ok" style="font-size:9.5px;padding:1px 5px">saved</span>':''}</span>
         <span class="sub">${d.srv?d.srv+' · ':''}${d.kcal} kcal · ${fmt(d.sat)}g sat · ${d.na}mg Na${d.uses>1?` · used ${d.uses}×`:''}</span></span>
-      <span class="add">+</span></button>`;
+      ${d.g==='learned'?`<button class="del fdel" aria-label="Delete ${esc(d.n)}"
+        onclick="event.stopPropagation();forgetFood('${d.id}')">×</button>`:''}
+      <span class="add">+</span></div>`;
   }).join('') + `<button class="btn ghost full" style="margin-top:12px" onclick="openCustom()">Something else</button>`;
 }
 
@@ -772,21 +808,27 @@ function renderTrends(){
   const tg=S.targets;
   let h='';
   for(const m of METRICS){
-    const vals = days.map(d=>totals(d)[m.k]);
-    const max = Math.max(tg[m.k]*1.25, ...vals) || 1;
+    const vals = days.map(d=>totals(d)[m.k]).map(v=>isFinite(v)?v:0);
+    const tgt = targetFor(m.k);
+    // Belt and braces: whatever happens to the target, a bar stays inside its card.
+    const max = Math.max(tgt*1.25, ...vals) || 1;
     const logged = days.filter(d=>logsFor(d).length);
     const avg = logged.length? logged.reduce((s,d)=>s+totals(d)[m.k],0)/logged.length : 0;
-    const overDays = logged.filter(d=>totals(d)[m.k]>tg[m.k]).length;
+    const overDays = logged.filter(d=>totals(d)[m.k]>tgt).length;
     h += `<div class="card">
       <div class="row sp"><h2 style="margin:0">${m.n}</h2>
-        <span class="pill ${avg>tg[m.k]?'bad':avg>tg[m.k]*0.8?'warn':'ok'}">avg ${fmt(avg,m.k)}${m.u}</span></div>
+        <span class="pill ${avg>tgt?'bad':avg>tgt*0.8?'warn':'ok'}">avg ${fmt(avg,m.k)}${m.u}</span></div>
       <div class="tiny">${logged.length? `Over budget on ${overDays} of ${logged.length} logged days` : 'No data yet'}</div>
       <div class="bars">${days.map((d,i)=>{
         const v=vals[i], has=logsFor(d).length>0;
-        return `<div class="b ${v>tg[m.k]?'over':''}" style="height:${has?Math.max(2,v/max*100):2}%;opacity:${has?1:.25}" title="${prettyDate(d)}: ${fmt(v,m.k)}${m.u}"></div>`;
+        const pct = has ? Math.min(100, Math.max(2, v/max*100)) : 2;
+        return `<div class="bw" onclick="openDayDetail('${d}','${m.k}')" role="button" tabindex="0"
+            aria-label="${prettyDate(d)}: ${fmt(v,m.k)}${m.u} ${m.n}"
+            title="${prettyDate(d)}: ${fmt(v,m.k)}${m.u} — tap for detail"
+          ><div class="b ${v>tgt?'over':''}" style="height:${pct}%;opacity:${has?1:.25}"></div></div>`;
       }).join('')}</div>
       <div class="blabs">${days.map((d,i)=>`<span>${i%3===0? d.slice(8):''}</span>`).join('')}</div>
-      <div class="tiny" style="margin-top:6px">Target ${tg[m.k]}${m.u}/day · last 14 days</div>
+      <div class="tiny" style="margin-top:6px">Target ${tgt}${m.u}/day · last 14 days</div>
     </div>`;
   }
 
@@ -840,7 +882,8 @@ function renderHealth(){
     h+=`<div class="hint" style="font-size:12.5px;margin-top:10px"><b>Last 7 days:</b> ${km.toFixed(1)} km · ${Math.round(kc)} kcal across ${wk.length} run${wk.length===1?'':'s'}</div>`;
     h+=ws2.slice(0,14).map(w=>`<div class="entry"><span class="e-nm"><b>${w.km?w.km+' km':w.kind}</b> <span class="tiny">${prettyDate(w.date)}${w.km?' · '+w.kind:''}</span>
       <small>${w.kcal?Math.round(w.kcal)+' kcal':''}${w.hr?' · avg HR '+w.hr:''}${w.mins?' · '+w.mins+' min':''}${w.km&&w.mins?' · '+(w.mins/w.km).toFixed(1)+' min/km':''}</small></span>
-      <button class="del" onclick="delRec('workouts','${w.id}')">×</button></div>`).join('');
+      <button class="del" onclick="openWorkout('${w.id}')" aria-label="Edit">✎</button>
+      <button class="del" onclick="delRec('workouts','${w.id}')" aria-label="Delete">×</button></div>`).join('');
   }
   h += `</div>`;
 
@@ -981,7 +1024,12 @@ sbg.onclick=closeSheet;
 let pendingQty=1, pendingDish=null, pendingPhoto=null, pendingThumb=null, pendingFull=null;
 let shotTs=Date.now(), shotDate=todayKey(), shotFromLibrary=false;
 
-function clearPending(){ pendingPhoto=null; pendingThumb=null; pendingFull=null; }
+function clearPending(){
+  pendingPhoto=null; pendingThumb=null; pendingFull=null;
+  // Reset the photo's timestamp too, or the next manual entry silently inherits
+  // the date of a picture picked out of the camera roll days ago.
+  shotTs=Date.now(); shotDate=todayKey(); shotFromLibrary=false;
+}
 async function setFoodPic(foodId, thumb, full){
   if(!foodId||!thumb) return;
   try{ await IDB.put('food:'+foodId,{thumb, full:full||thumb, ts:Date.now()});
@@ -1102,6 +1150,11 @@ function commitLog(){
 }
 function openCustom(pref){
   pref=pref||{};
+  /* When a photo is being logged, its own timestamp is the truth. With no photo
+     this is a plain manual entry, so it belongs to the day being viewed and the
+     time now — NOT to whatever photo was last opened. Showing the date and time
+     as editable fields means it can never again land on a day you can't see. */
+  const cts = pendingThumb ? shotTs : defaultTs();
   openSheet(`<h2>${pref.name?'Check these numbers':'Add manually'}</h2>
     ${pref.note?`<div class="hint">${pref.note}</div>`:''}
     <div class="fld"><label>What was it</label><input id="c_n" value="${esc(pref.name||'')}" placeholder="e.g. Bak kut teh"></div>
@@ -1114,7 +1167,12 @@ function openCustom(pref){
       <div class="fld" style="flex:1"><label>Sugar g</label><input type="number" step="0.1" id="c_sug" value="${pref.sug??''}"></div>
     </div>
     <div class="fld"><label>Purine mg <span class="tiny" style="text-transform:none;letter-spacing:0">— secondary</span></label><input type="number" id="c_pur" value="${pref.pur??''}"></div>
-    <div class="fld"><label>Meal</label><select id="c_meal">${MEAL_ORDER.map(m=>`<option ${((pref.meal)||mealOf(Date.now()))===m?'selected':''}>${m}</option>`).join('')}</select></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1.2"><label>Date</label>
+        <input type="date" id="c_date" value="${todayKey(new Date(cts))}" max="${todayKey()}"></div>
+      <div class="fld" style="flex:1"><label>Time</label>
+        <input type="time" id="c_time" value="${timeStr(cts)}"></div></div>
+    <div class="fld"><label>Meal</label><select id="c_meal">${MEAL_ORDER.map(m=>`<option ${((pref.meal)||mealOf(cts))===m?'selected':''}>${m}</option>`).join('')}</select></div>
     <button class="btn full" onclick="commitCustom()">Add</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
@@ -1122,11 +1180,16 @@ function commitCustom(){
   const v=id=>+document.getElementById(id).value||0;
   const n=document.getElementById('c_n').value.trim()||'Custom item';
   const eid=uid();
-  S.logs.push({id:eid,date:(shotFromLibrary?shotDate:cur),ts:shotTs,dishId:null,name:n,qty:1,hasPhoto:!!pendingThumb,
+  const dEl=document.getElementById('c_date'), tEl=document.getElementById('c_time');
+  const ts = (dEl&&tEl&&dEl.value) ? tsFrom(dEl.value, tEl.value||'12:00') : defaultTs();
+  const dk = todayKey(new Date(ts));
+  S.logs.push({id:eid,date:dk,ts,dishId:null,name:n,qty:1,hasPhoto:!!pendingThumb,
     meal:document.getElementById('c_meal').value,
     kcal:v('c_kcal'),sat:v('c_sat'),na:v('c_na'),sug:v('c_sug'),pur:v('c_pur')});
   commitPhoto(eid);
-  pendingPhoto=null; save(); closeSheet(); tab='today'; render();
+  pendingPhoto=null; save(); closeSheet();
+  cur=dk; tab='today'; render();     // jump to the day it landed on, so it's visible
+  showFlash(flashFor(eid));
 }
 function delLog(id){
   const l=S.logs.find(x=>x.id===id); if(!l) return;
@@ -1206,60 +1269,165 @@ async function testConn(){
       <div class="fa"><button onclick="S.provider='anthropic';S.model='';save();render();">Switch to Claude</button></div></div>`);
   }
 }
-function scanLabel(input){
+/* Two ways into the food library: read a printed panel, or estimate from a
+   photo of the food itself. Both land in the same editable draft so the
+   description + re-estimate loop works either way. */
+let foodDraft=null;    // {pic:{thumb,full}, out:{...}, mode:'label'|'item'}
+
+function scanLabel(input){ return grabFood(input,'label'); }
+function scanFood(input){  return grabFood(input,'item'); }
+
+function grabFood(input, mode){
   const f=input.files&&input.files[0]; if(!f) return;
   input.value='';
-  if(!activeKey()){ alert('Connect a provider in Settings first — reading a label needs the AI.'); return; }
+  if(!activeKey()){ alert('Connect a provider in Settings first — this needs the AI.'); return; }
   const r=new FileReader();
   r.onload=async e=>{
     const thumb=await shrink(e.target.result,160,0.7);
-    const big=await shrinkToBudget(e.target.result, S.photoKB||100, 1100);   // panels need detail
-    labelPic={thumb, full:big};
-    openSheet(`<h2>Reading the label…</h2><div class="fr"><img class="fimg" src="${thumb}" alt="">
-      <div style="flex:1"><p class="muted" style="margin:0"><span class="spin"></span> Pulling the numbers off the panel.</p></div></div>`);
+    // A printed panel needs more pixels than a plate of food does.
+    const big=await shrinkToBudget(e.target.result, S.photoKB||100, mode==='label'?1100:900);
+    foodDraft={pic:{thumb,full:big}, out:null, mode};
+    openSheet(`<h2>${mode==='label'?'Reading the label…':'Working out what this is…'}</h2>
+      <div class="fr"><img class="fimg" src="${thumb}" alt="">
+        <div style="flex:1"><p class="muted" style="margin:0"><span class="spin"></span> ${
+          mode==='label'?'Pulling the numbers off the panel.':'Identifying the food and estimating one serving.'}</p></div></div>`);
     try{
-      const out=await readPanel(big);
-      S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost();
-      openSheet(`<h2>${esc(out.name||'New food')}</h2>
-        <div class="fr" style="margin:-4px 0 12px"><img class="fimg" src="${thumb}" alt="">
-          <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${out.brand?out.brand+' · ':''}per ${out.serving||'serving'}</div></div></div>
-        <div class="fld"><label>Name</label><input id="pl_n" value="${esc(out.name||'')}"></div>
-        <div class="fld"><label>One serving is</label><input id="pl_s" value="${esc(out.serving||'1 serving')}"></div>
-        <div class="row" style="gap:8px">
-          <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="pl_kcal" value="${Math.round(out.kcal||0)}"></div>
-          <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="pl_sat" value="${+out.sat||0}"></div></div>
-        <div class="row" style="gap:8px">
-          <div class="fld" style="flex:1"><label>Sodium mg</label><input type="number" id="pl_na" value="${Math.round(out.na||0)}"></div>
-          <div class="fld" style="flex:1"><label>Free sugars g</label><input type="number" step="0.1" id="pl_sug" value="${+out.sug||0}"></div></div>
-        <div class="row" style="gap:8px">
-          <div class="fld" style="flex:1"><label>Fructose g</label><input type="number" step="0.1" id="pl_fru" value="${+out.fru||0}"></div>
-          <div class="fld" style="flex:1"><label>Purine mg</label><input type="number" id="pl_pur" value="${Math.round(out.pur||0)}"></div></div>
-        ${out.note?`<div class="hint" style="font-size:12.5px">${out.note}</div>`:''}
-        ${out.fru>0?`<div class="hint bad" style="font-size:12.5px"><b>${out.fru}g fructose per serving.</b> That's the number that matters for your gout — and exercise doesn't offset it.</div>`:''}
-        <button class="btn full" onclick="savePanel()">Save to my foods</button>
-        <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+      foodDraft.out = mode==='label' ? await readPanel(big) : await readFoodItem(big);
+      S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost(); save(true);
+      openFoodDraft();
     }catch(err){
-      openSheet(`<h2>Couldn't read that label</h2>
-        <p class="muted">${String(err.fix||err.message||err).slice(0,160)}</p>
+      foodDraft=null;
+      openSheet(`<h2>Couldn't read that photo</h2>
+        <p class="muted">${esc(String(err.fix||err.message||err).slice(0,180))}</p>
         <button class="btn ghost full" onclick="closeSheet()">Close</button>`);
     }
   };
   r.readAsDataURL(f);
 }
-let labelPic=null;
+
+function openFoodDraft(){
+  if(!foodDraft||!foodDraft.out){ closeSheet(); return; }
+  const out=foodDraft.out, pic=foodDraft.pic, item=foodDraft.mode==='item';
+  openSheet(`<h2>${esc(out.name||'New food')}</h2>
+    <div class="fr" style="margin:-4px 0 12px"><img class="fimg" src="${pic.thumb}" alt="">
+      <div style="flex:1;min-width:0"><div class="muted" style="font-size:13px">${
+        out.brand?esc(out.brand)+' · ':''}per ${esc(out.serving||'serving')}</div>
+        <div class="tiny" style="margin-top:3px;color:${item?'var(--serious)':'var(--good)'}">${
+          item?'Estimated from the photo — check it against what you know':'Read off the printed panel'}</div></div></div>
+
+    <div class="fld"><label>Not right? Say what it is</label>
+      <textarea id="fd_hint" rows="2" placeholder="${item
+        ? 'e.g. it&#39;s a small kuih lapis, about 40g, not a slice of cake'
+        : 'e.g. use the 500ml bottle, not the 250ml serving'}"></textarea></div>
+    <button class="btn ghost full" onclick="reFood()">Re-estimate with that</button>
+    <p class="tiny" style="margin:7px 0 14px;text-align:center">Sends the same photo back with your words · ${senTxt()}</p>
+
+    <div class="fld"><label>Name</label><input id="pl_n" value="${esc(out.name||'')}"></div>
+    <div class="fld"><label>One serving is</label><input id="pl_s" value="${esc(out.serving||'1 serving')}"></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Calories</label><input type="number" id="pl_kcal" value="${Math.round(out.kcal||0)}"></div>
+      <div class="fld" style="flex:1"><label>Sat fat g</label><input type="number" step="0.1" id="pl_sat" value="${+out.sat||0}"></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Sodium mg</label><input type="number" id="pl_na" value="${Math.round(out.na||0)}"></div>
+      <div class="fld" style="flex:1"><label>Free sugars g</label><input type="number" step="0.1" id="pl_sug" value="${+out.sug||0}"></div></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:1"><label>Fructose g</label><input type="number" step="0.1" id="pl_fru" value="${+out.fru||0}"></div>
+      <div class="fld" style="flex:1"><label>Purine mg</label><input type="number" id="pl_pur" value="${Math.round(out.pur||0)}"></div></div>
+    ${out.note?`<div class="hint" style="font-size:12.5px">${esc(out.note)}</div>`:''}
+    ${out.fru>0?`<div class="hint bad" style="font-size:12.5px"><b>${out.fru}g fructose per serving.</b> That's the number that matters for your gout — and exercise doesn't offset it.</div>`:''}
+    ${(item && out.pur>=100)?`<div class="hint bad" style="font-size:12.5px"><b>${Math.round(out.pur)}mg purine per serving.</b> A quarter of your daily allowance in one go.</div>`:''}
+    <button class="btn full" onclick="savePanel()">Save to my foods</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="foodDraft=null;closeSheet()">Cancel</button>`);
+}
+
+async function reFood(){
+  if(!foodDraft) return;
+  const el=document.getElementById('fd_hint');
+  const hint=el?el.value.trim():'';
+  if(!hint){ alert('Write what it actually is first — otherwise the answer will be the same.'); return; }
+  const btn=event&&event.target;
+  if(btn){ btn.textContent='Re-estimating…'; btn.disabled=true; }
+  // Keep any numbers already corrected by hand, so a re-estimate never quietly
+  // discards an edit that is still on screen.
+  const keep={}; for(const [k,id] of [['name','pl_n'],['serving','pl_s']]){
+    const e2=document.getElementById(id); if(e2&&e2.value.trim()) keep[k]=e2.value.trim(); }
+  try{
+    const out = foodDraft.mode==='label'
+      ? await readPanel(foodDraft.pic.full, hint)
+      : await readFoodItem(foodDraft.pic.full, hint);
+    S.shots=(S.shots||0)+1; S.spendUsd=(S.spendUsd||0)+modelCost(); save(true);
+    foodDraft.out=out;
+    openFoodDraft();
+  }catch(err){
+    if(btn){ btn.textContent='Re-estimate with that'; btn.disabled=false; }
+    alert('Couldn\'t re-estimate — '+String(err.fix||err.message||err).slice(0,160));
+  }
+}
+
+/* A plate of food, not a package: no printed numbers, so this is an estimate
+   and the sheet says so. One serving = what is in the photo. */
+async function readFoodItem(dataUrl, hint){
+  const P=prov();
+  const body={ model:curModel(), max_tokens:900,
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},
+      {type:'text',text:`This is a photo of a food or drink being added to a personal food library — not a packet with a nutrition panel.
+
+The person is Malaysian-Chinese in Kuala Lumpur. Name it the way a Malaysian would — "kuih lapis", "siew yok", "wantan mee", "kaya toast" — not a generic description.
+
+Define ONE serving as the portion visible in the photo, and describe it in "serving" (e.g. "1 piece, about 40g", "1 bowl ~350ml"). Report every number PER THAT ONE SERVING.
+${hint? `\n**THE PERSON SAYS THIS IS: "${hint}"**\nTrust that over your own reading of the photo. If they give a size or weight, use it and say so in the note.\n` : ''}
+Definitions that matter here:
+- **"sug" = FREE SUGARS** (WHO): added sugar, honey, syrup, fruit juice. Sugars naturally present in plain milk, plain yoghurt and whole fruit are NOT free sugars.
+- **"fru" = grams of FRUCTOSE.** Sucrose is 50% fructose by mass; HFCS ~55%; honey ~40%; glucose, dextrose and maltodextrin are 0%. Whole fruit carries real fructose.
+- **"pur" = purine mg.** Meaningful only in meat, offal, seafood, anchovies, and yeast extract. Near 0 for rice, vegetables, bread, most sweets.
+- **"sat" = saturated fat grams.** Coconut milk, ghee, lard, palm oil and fried food push this up — it is the number that matters most to this person.
+
+If you cannot tell what the food is, still give your best estimate but set "confidence":"low" and say what you're unsure about in "note". If the image contains no food at all, reply {"notFood":true}.
+
+Reply with ONLY JSON:
+{"name":"what it is","serving":"one serving, with an approximate size","kcal":number,"sat":number,"na":number,"sug":number,"fru":number,"pur":number,"confidence":"high|low","note":"one short sentence — what you assumed about size and how you judged the fat and sugar"}`}
+    ]}]};
+  const hdr={'content-type':'application/json','anthropic-version':'2023-06-01'};
+  if(S.provider==='ilmu') hdr['Authorization']='Bearer '+activeKey();
+  else { hdr['x-api-key']=activeKey(); hdr['anthropic-dangerous-direct-browser-access']='true'; }
+  const r=await fetch(P.url,{method:'POST',headers:hdr,body:JSON.stringify(body)});
+  if(!r.ok){ const t=await r.text();
+    if(r.status===401) throw aiErr('key','Key rejected','Check it in Settings.');
+    throw aiErr('other','Request failed ('+r.status+')',String(t).slice(0,120)); }
+  const j=await r.json();
+  const o=parseLoose((j.content||[]).map(c=>c.text||'').join(''));
+  if(!o) throw aiErr('noparse','Couldn\'t read the reply','Try a clearer, better-lit photo.');
+  if(o.notFood) throw aiErr('notfood','No food in that photo','Point the camera at the food itself.');
+  return o;
+}
+
 async function savePanel(){
   const v=i=>+document.getElementById(i).value||0;
   const n=document.getElementById('pl_n').value.trim();
   if(!n){ alert('Give it a name.'); return; }
+  const mode=(foodDraft&&foodDraft.mode)||'label';
+  const existing=S.learned.find(x=>normalise(x.n)===normalise(n));
+  /* learnItem() averages a repeat name towards the new figures. That is right
+     for a repeated AI guess, but wrong here: these numbers were just read and
+     corrected by hand, so they replace rather than blend. */
+  if(existing){
+    if(!confirm(`"${existing.n}" is already in your foods (${existing.kcal} kcal per ${existing.srv}).\n\nReplace it with these numbers?`)) return;
+    S.learned=S.learned.filter(x=>x.id!==existing.id);
+    dropFoodPic(existing.id);
+  }
   learnItem(n,1,{kcal:v('pl_kcal'),sat:v('pl_sat'),na:v('pl_na'),sug:v('pl_sug'),pur:v('pl_pur'),fru:v('pl_fru')},
             document.getElementById('pl_s').value.trim()||'1 serving');
   const e=S.learned.find(x=>normalise(x.n)===normalise(n));
-  if(e){ e.grade='label'; if(labelPic) await setFoodPic(e.id, labelPic.thumb, labelPic.full); }
-  labelPic=null;
+  // A printed panel is a measurement; a photo of a plate is an estimate. Keep
+  // them distinguishable so the food list can be trusted differently.
+  if(e){ e.grade = mode==='label' ? 'label' : 'photo';
+    if(foodDraft&&foodDraft.pic) await setFoodPic(e.id, foodDraft.pic.thumb, foodDraft.pic.full); }
+  foodDraft=null;
   save(); closeSheet(); filter='learned'; q=''; tab='add'; render();
 }
 
-async function readPanel(dataUrl){
+async function readPanel(dataUrl, hint){
   const P=prov();
   const body={ model:curModel(), max_tokens:900,
     messages:[{role:'user',content:[
@@ -1273,6 +1441,7 @@ Definitions that matter here:
 - **"fru" = grams of FRUCTOSE.** Use the ingredients: sucrose is 50% fructose by mass; high-fructose corn syrup roughly 55%; glucose, dextrose, maltodextrin and glucose syrup are 0% fructose; honey ~40%; fruit juice concentrate is high. If the ingredients list glucose/dextrose/maltodextrin only, fru is 0. Estimate and say how in the note.
 - **"pur" = purine mg.** Nearly always 0 for a drink, a gel or a confection. Only meat, fish, offal and yeast extract carry meaningful purine.
 
+${hint? `\n**THE PERSON SAYS: "${hint}"**\nTrust that over your own reading — for example if they name the serving size to use.\n` : ''}
 If the image is not a food package at all, reply {"notLabel":true}.
 
 Reply with ONLY JSON:
@@ -1337,6 +1506,50 @@ function openCal(shift){
     </div>
     <p class="tiny" style="margin:10px 0 0">Colour shows saturated fat against your 17 g target — the number that matters most for you.</p>
     <button class="btn ghost full" style="margin-top:12px" onclick="gotoDay('${today}')">Back to today</button>`);
+}
+/* Tap a bar → what actually made that number. Sorted biggest first, because
+   the useful question is always "what was the one thing that did it". */
+function openDayDetail(k, mk){
+  const m=METRICS.find(x=>x.k===mk)||METRICS[0];
+  const tgt=targetFor(mk), t=totals(k)[mk], ls=logsFor(k);
+  const val=l=>(+l[mk]||0)*(l.qty||1);
+  const rows=ls.slice().sort((a,b)=>val(b)-val(a));
+  const pct=tgt? Math.round(t/tgt*100) : 0;
+  const worst=rows.length? val(rows[0]) : 0;
+
+  const body = !ls.length
+    ? `<div class="empty">Nothing logged on this day.</div>`
+    : rows.map(l=>{
+        const v=val(l);
+        const share = t>0 ? v/t*100 : 0;
+        // Components only help when they actually carry some of this metric.
+        // A single component just restates the row's own number — only break it
+        // down when there is genuinely more than one thing carrying this metric.
+        const all=(l.items||[])
+          .map(i=>({n:i.name, v:(+((i.per||{})[mk])||0)*(+i.eaten||0)}))
+          .filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+        const parts = all.length>1 ? all.slice(0,4) : [];
+        return `<div class="dd">
+          <span class="ddt">${timeStr(l.ts)}</span>
+          <span class="ddn">${esc(l.name)}
+            <div class="tiny" style="color:var(--muted)">${esc(l.meal||'')}${
+              parts.length? ' · '+parts.map(x=>`${esc(x.n)} ${fmt(x.v,mk)}${m.u}`).join(', ') : ''}</div>
+            <div class="ddshare" style="width:${Math.max(2,Math.min(100,share))}%;opacity:${v>0?1:.2}"></div>
+          </span>
+          <span class="ddv">${fmt(v,mk)}${m.u}<div class="tiny" style="font-weight:400;color:var(--muted);text-align:right">${Math.round(share)}%</div></span>
+        </div>`;
+      }).join('');
+
+  openSheet(`<h2>${m.n}</h2>
+    <p class="muted" style="margin:-4px 0 4px">${prettyDate(k)}</p>
+    <div class="hint ${t>tgt?'bad':''}" style="font-size:13px;margin:10px 0 14px">
+      <b>${fmt(t,mk)}${m.u}</b> of your ${tgt}${m.u} target — ${pct}%${
+        t>tgt? ` · <b style="color:var(--crit)">over by ${fmt(t-tgt,mk)}${m.u}</b>`:''}
+      ${worst>0 && rows.length>1 ? `<br><span class="tiny">Biggest single contributor: <b>${esc(rows[0].name)}</b> at ${fmt(worst,mk)}${m.u}.</span>`:''}
+    </div>
+    ${body}
+    <button class="btn full" style="margin-top:14px" onclick="gotoDay('${k}')">Open this day</button>
+    <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Close</button>`);
 }
 function gotoDay(k){ cur=k; calMonth=null; closeSheet(); tab='today'; render(); }
 function openDescribe(prefill){
@@ -1457,31 +1670,39 @@ Reply with ONLY a JSON object:
   o.items=resolveItems(normItems(o.items));
   return o;
 }
-function openWorkout(){
-  openSheet(`<h2>Log a run</h2>
+function openWorkout(id){
+  /* Date and time default to right now, not to `cur`. The Health tab shows no
+     date navigation, so `cur` is invisible state — if you'd been looking at
+     yesterday in Today, a run logged here silently landed on yesterday. */
+  const w=id? (S.workouts||[]).find(x=>x.id===id) : null;
+  const now=Date.now();
+  openSheet(`<h2>${w?'Edit this run':'Log a run'}</h2>
     <p class="muted" style="margin:-4px 0 14px">Straight off your watch — it feeds the net calorie line on Today.</p>
-    <div class="fld"><label>Date</label><input type="date" id="wk_d" value="${cur}" max="${todayKey()}"></div>
+    <div class="fld"><label>Date</label><input type="date" id="wk_d" value="${w?w.date:todayKey()}" max="${todayKey()}"></div>
     <div class="row" style="gap:8px">
-      <div class="fld" style="flex:1"><label>Distance (km)</label><input type="number" step="0.1" id="wk_km" placeholder="12.4" inputmode="decimal"></div>
-      <div class="fld" style="flex:1"><label>Calories burned</label><input type="number" id="wk_kcal" placeholder="820" inputmode="numeric"></div></div>
+      <div class="fld" style="flex:1"><label>Distance (km)</label><input type="number" step="0.1" id="wk_km" placeholder="12.4" inputmode="decimal" value="${w&&w.km?w.km:''}"></div>
+      <div class="fld" style="flex:1"><label>Calories burned</label><input type="number" id="wk_kcal" placeholder="820" inputmode="numeric" value="${w&&w.kcal?Math.round(w.kcal):''}"></div></div>
     <div class="row" style="gap:8px">
-      <div class="fld" style="flex:1"><label>Average HR</label><input type="number" id="wk_hr" placeholder="148" inputmode="numeric"></div>
-      <div class="fld" style="flex:1"><label>Duration (min)</label><input type="number" id="wk_min" placeholder="68" inputmode="numeric"></div></div>
+      <div class="fld" style="flex:1"><label>Average HR</label><input type="number" id="wk_hr" placeholder="148" inputmode="numeric" value="${w&&w.hr?w.hr:''}"></div>
+      <div class="fld" style="flex:1"><label>Duration (min)</label><input type="number" id="wk_min" placeholder="68" inputmode="numeric" value="${w&&w.mins?w.mins:''}"></div></div>
     <div class="fld"><label>Start time <span class="tiny" style="text-transform:none;letter-spacing:0">— lets the app spot pre/post-run food</span></label>
-      <input type="time" id="wk_time" value="${timeStr(defaultTs())}"></div>
-    <div class="fld"><label>Type</label><select id="wk_kind">
-      <option>Easy run</option><option>Long run</option><option>Intervals / tempo</option><option>Race</option><option>Other</option></select></div>
+      <input type="time" id="wk_time" value="${w&&w.time? w.time : timeStr(now)}"></div>
+    <div class="fld"><label>Type</label><select id="wk_kind">${
+      ['Easy run','Long run','Intervals / tempo','Race','Other']
+        .map(k=>`<option ${w&&w.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
     <div class="hint" style="font-size:12.5px">On long runs, weigh yourself before and after — that's what separates dehydration from overdrinking behind your headaches. Log it under Weight.</div>
-    <button class="btn full" onclick="commitWorkout()">Save</button>
+    <button class="btn full" onclick="commitWorkout(${w?`'${w.id}'`:'null'})">Save</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
 }
-function commitWorkout(){
+function commitWorkout(id){
   const v=i=>+document.getElementById(i).value||0;
   const kc=v('wk_kcal');
   if(!kc && !v('wk_km')){ alert('Enter at least distance or calories.'); return; }
-  S.workouts.push({id:uid(),date:document.getElementById('wk_d').value||todayKey(),
+  const rec={date:document.getElementById('wk_d').value||todayKey(),
     kind:document.getElementById('wk_kind').value, km:v('wk_km'), kcal:kc, hr:v('wk_hr'), mins:v('wk_min'),
-    time:(document.getElementById('wk_time')||{}).value||''});
+    time:(document.getElementById('wk_time')||{}).value||''};
+  const ex=id? (S.workouts||[]).find(x=>x.id===id) : null;
+  if(ex) Object.assign(ex, rec); else S.workouts.push({id:uid(), ...rec});
   save(); closeSheet(); render();
 }
 function openFlare(){
@@ -1655,10 +1876,15 @@ async function editLog(id){
   editSnap={id, data:JSON.parse(JSON.stringify(l))};
   openEdit(l);
 }
-let editing=null, editSnap=null;
+let editing=null, editSnap=null, editFields=null;
 
 function openEdit(l){
   const items=(l.items&&l.items.length)? l.items : null;
+  /* Snapshot what the number fields start out showing. Comparing against the
+     entry's own values instead would miss a small deliberate edit, which is how
+     typing "9" into sat fat used to be thrown away without a word. */
+  editFields={kcal:Math.round(l.kcal), sat:+l.sat, na:Math.round(l.na),
+              sug:+l.sug, pur:Math.round(l.pur)};
   openSheet(`<h2>Fix this entry</h2>
     <div class="fr" style="margin:-4px 0 12px">
       ${THUMBS[l.id]?`<img class="fimg" src="${THUMBS[l.id]}" alt="">`:''}
@@ -1827,6 +2053,8 @@ async function reEstimate(id){
     if(mt){ const d=mt.dish; out.kcal=d.kcal; out.sat=d.sat; out.na=d.na; out.sug=d.sug; out.pur=d.pur; out.fru=d.fru||0; out.matched=d.n; }
     for(const [k,el] of [['kcal','e_kcal'],['sat','e_sat'],['na','e_na'],['sug','e_sug'],['pur','e_pur']])
       document.getElementById(el).value = (k==='sat'||k==='sug')? (+out[k]).toFixed(1) : Math.round(out[k]);
+    editFields={kcal:Math.round(out.kcal), sat:+(+out.sat).toFixed(1), na:Math.round(out.na),
+                sug:+(+out.sug).toFixed(1), pur:Math.round(out.pur)};
     document.getElementById('e_n').value = out.name||hint;
     if(out.meal) { const s=document.getElementById('e_meal'); if(s) s.value=out.meal; }
     l.pending={seen:out.portionSeen||'', matched:out.matched||'', items:out.items||[], note:out.note||'', out};
@@ -1847,13 +2075,21 @@ function saveEdit(id){
   const nd=document.getElementById('e_date'), nt=document.getElementById('e_time');
   if(nd&&nt){ l.ts=tsFrom(nd.value,nt.value); l.date=todayKey(new Date(l.ts)); }
   const typed={kcal:v('e_kcal'),sat:v('e_sat'),na:v('e_na'),sug:v('e_sug'),pur:v('e_pur')};
-  if(l.items&&l.items.length){
+  // Did you actually touch a number, or just leave the derived figures alone?
+  const touched = !editFields || Object.keys(typed).some(k=>Math.abs(typed[k]-(+editFields[k]||0))>0.001);
+  if(l.items&&l.items.length && touched){
+    /* Your typed number and the component breakdown now disagree. Previously a
+       small edit was inside a 5% tolerance and got silently overwritten by the
+       components — you typed 9g of sat fat and it stayed 3g. Never guess which
+       one you meant; ask, and default to keeping what you typed. */
     const t=itemsTotal(l.items);
-    if(Math.abs(t.kcal-typed.kcal)>Math.max(20,t.kcal*0.05)){
-      // typed a different total than the components imply — drop to a plain entry
-      if(confirm('Those numbers don\'t match the breakdown. Keep your numbers and discard the item breakdown?')) l.items=[];
-      else { applyItems(l); }
-    }
+    const keep = confirm(
+      `You changed the numbers, but this entry still has a breakdown.\n\n`+
+      `Your numbers: ${Math.round(typed.kcal)} kcal · ${fmt(typed.sat)}g sat\n`+
+      `The breakdown: ${Math.round(t.kcal)} kcal · ${fmt(t.sat)}g sat\n\n`+
+      `OK — keep my numbers and drop the breakdown.\n`+
+      `Cancel — keep the breakdown and discard my edit.`);
+    if(keep) l.items=[]; else applyItems(l);
   }
   if(!l.items||!l.items.length){
     l.kcal=typed.kcal; l.sat=typed.sat; l.na=typed.na; l.sug=typed.sug; l.pur=typed.pur;
@@ -1865,7 +2101,7 @@ function saveEdit(id){
   // Learn the components only once you've accepted them — a re-estimate you
   // cancelled should not leave its figures in your food library.
   if(pendOut){ learnFrom(pendOut); }
-  l.auto=false; editing=null; editSnap=null;
+  l.auto=false; editing=null; editSnap=null; editFields=null;
   save(); closeSheet(); cur=l.date; render(); showFlash(flashFor(id));
 }
 function shrink(dataUrl,max,quality){
