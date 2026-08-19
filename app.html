@@ -434,6 +434,29 @@ const MEAL_ORDER=['Pre-workout','During workout','Post-workout','Breakfast','Mor
                   'Lunch','Afternoon snack','Dinner','Supper'];
 const WORKOUT_SLOTS=['Pre-workout','During workout','Post-workout'];
 
+/* Grouped like Strava's picker, trimmed to what's actually available in KL —
+   no alpine skiing, but badminton, squash and futsal earn their place.
+   The five original running values stay in the list unchanged, so runs logged
+   before this existed still match their option instead of silently becoming
+   whatever sits at the top of the dropdown. */
+const ACTIVITIES = [
+  ['Running & walking', ['Easy run','Long run','Intervals / tempo','Race','Trail run','Treadmill run','Walk','Hike']],
+  ['Cycling',           ['Ride','Indoor cycling','Mountain bike','Spin class']],
+  ['Water',             ['Swim','Open-water swim','Kayak','Stand-up paddle','Surfing']],
+  ['Gym',               ['Weight training','Circuit / CrossFit','HIIT','Elliptical','Stair climber','Rowing machine','Core / abs']],
+  ['Studio',            ['Yoga','Pilates','Stretching','Tai chi','Dance']],
+  ['Sport',             ['Badminton','Squash','Table tennis','Tennis','Pickleball','Football','Futsal','Basketball','Golf','Climbing','Martial arts']],
+  ['Other',             ['Other']]
+];
+const ALL_ACTIVITIES = ACTIVITIES.flatMap(([,list])=>list);
+/* Things you cover ground doing. Everything else hides the distance field
+   rather than asking how many kilometres of yoga you did. */
+const NO_DISTANCE = new Set(['Weight training','Circuit / CrossFit','HIIT','Core / abs',
+  'Yoga','Pilates','Stretching','Tai chi','Dance','Badminton','Squash','Table tennis',
+  'Tennis','Pickleball','Football','Futsal','Basketball','Golf','Climbing','Martial arts',
+  'Spin class','Surfing','Stair climber']);
+function hasDistance(kind){ return !NO_DISTANCE.has(kind); }
+
 /* If a run is logged that day, offer the training slots first — most people
    fuelling a session are logging within a couple of hours of it. */
 function slotSuggestion(ts,dateKey){
@@ -451,7 +474,7 @@ function slotSuggestion(ts,dateKey){
 /* ============================================================
    STATE
    ============================================================ */
-const BUILD='30';
+const BUILD='31';
 const BUILD_DATE='15 Aug 2026';
 const LS='foodlog.v1';
 
@@ -687,11 +710,12 @@ function renderToday(){
         return meterHTML(m, burn?net:t.kcal, tg.kcal) + (burn? `
           <div class="netline">
             <span>Eaten <b>${Math.round(t.kcal)}</b></span><span>−</span>
-            <span>Burned <b>${Math.round(burn)}</b>${works[0]&&works[0].km?` <span class="tiny">(${works.reduce((s,w)=>s+(+w.km||0),0)} km)</span>`:''}</span>
+            <span>Burned <b>${Math.round(burn)}</b>${(()=>{const d=works.reduce((s,w)=>s+(+w.km||0),0);
+              return d>0?` <span class="tiny">(${+d.toFixed(1)} km)</span>`:'';})()}</span>
             <span>=</span><span>Net <b>${Math.round(net)}</b></span>
           </div>
           <p class="tiny" style="margin:5px 0 0">Watch estimates usually run high, and your target already assumes ordinary daily movement — so treat the burn as a rough credit, not licence to eat it all back.</p>` : `
-          <button class="btn ghost full" style="margin-top:9px;padding:9px;font-size:13px" onclick="openWorkout()">+ Log today's run</button>`);
+          <button class="btn ghost full" style="margin-top:9px;padding:9px;font-size:13px" onclick="openWorkout()">+ Log today's activity</button>`);
       }).join('')}</div>`;
   }
 
@@ -871,15 +895,16 @@ function renderHealth(){
         <button class="del" onclick="delRec('flares','${f.id}')">×</button></div>`).join('');
   h += `</div>`;
 
-  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Runs</h2>
-      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openWorkout()">+ Log run</button></div>
+  h += `<div class="card"><div class="row sp"><h2 style="margin:0">Activity</h2>
+      <button class="btn ghost" style="padding:7px 12px;font-size:13px" onclick="openWorkout()">+ Log activity</button></div>
     <p class="tiny" style="margin:8px 0 0">Distance, calories and average HR from your watch. Calories offset what you've eaten on the Today screen.</p>`;
   const ws2=(S.workouts||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  if(!ws2.length) h+=`<div class="empty">No runs logged.</div>`;
+  if(!ws2.length) h+=`<div class="empty">No activity logged.</div>`;
   else{
     const wk=ws2.filter(w=>w.date>=shiftKey(todayKey(),-6));
     const km=wk.reduce((s,w)=>s+(+w.km||0),0), kc=wk.reduce((s,w)=>s+(+w.kcal||0),0);
-    h+=`<div class="hint" style="font-size:12.5px;margin-top:10px"><b>Last 7 days:</b> ${km.toFixed(1)} km · ${Math.round(kc)} kcal across ${wk.length} run${wk.length===1?'':'s'}</div>`;
+    h+=`<div class="hint" style="font-size:12.5px;margin-top:10px"><b>Last 7 days:</b> ${
+      km>0?km.toFixed(1)+' km · ':''}${Math.round(kc)} kcal across ${wk.length} session${wk.length===1?'':'s'}</div>`;
     h+=ws2.slice(0,14).map(w=>`<div class="entry"><span class="e-nm"><b>${w.km?w.km+' km':w.kind}</b> <span class="tiny">${prettyDate(w.date)}${w.km?' · '+w.kind:''}</span>
       <small>${w.kcal?Math.round(w.kcal)+' kcal':''}${w.hr?' · avg HR '+w.hr:''}${w.mins?' · '+w.mins+' min':''}${w.km&&w.mins?' · '+(w.mins/w.km).toFixed(1)+' min/km':''}</small></span>
       <button class="del" onclick="openWorkout('${w.id}')" aria-label="Edit">✎</button>
@@ -1208,7 +1233,7 @@ function delRec(k,id){
     flares:    r=>`gout flare ${when(r.date)}${r.joint?' — '+r.joint:''}`,
     weights:   r=>`weight of ${r.kg} kg ${when(r.date)}${r.ctx&&r.ctx!=='normal'?` (${r.ctx==='pre'?'before':'after'} run)`:''}`,
     headaches: r=>`headache ${when(r.date)}${r.sev?` — severity ${r.sev}/10`:''}`,
-    workouts:  r=>`${r.km?r.km+' km ':''}${(r.kind||'run').toLowerCase()} ${when(r.date)}`
+    workouts:  r=>`${r.km?r.km+' km ':''}${(r.kind||'activity').toLowerCase()} ${when(r.date)}`
   }[k];
   const what=label? label(r) : 'this record';
   const extra = k==='flares'
@@ -1501,7 +1526,7 @@ function openCal(shift){
       <span><i style="background:var(--good)"></i>within budget</span>
       <span><i style="background:var(--warn)"></i>close</span>
       <span><i style="background:var(--crit)"></i>over</span>
-      <span><i style="background:var(--axis)"></i>run/weight only</span>
+      <span><i style="background:var(--axis)"></i>activity/weight only</span>
       <span><i style="background:transparent;border:1px solid var(--grid)"></i>nothing logged</span>
     </div>
     <p class="tiny" style="margin:10px 0 0">Colour shows saturated fat against your 17 g target — the number that matters most for you.</p>
@@ -1676,28 +1701,47 @@ function openWorkout(id){
      yesterday in Today, a run logged here silently landed on yesterday. */
   const w=id? (S.workouts||[]).find(x=>x.id===id) : null;
   const now=Date.now();
-  openSheet(`<h2>${w?'Edit this run':'Log a run'}</h2>
+  const kind = w ? (w.kind||'Other') : 'Easy run';
+  openSheet(`<h2>${w?'Edit this activity':'Log an exercise activity'}</h2>
     <p class="muted" style="margin:-4px 0 14px">Straight off your watch — it feeds the net calorie line on Today.</p>
     <div class="fld"><label>Date</label><input type="date" id="wk_d" value="${w?w.date:todayKey()}" max="${todayKey()}"></div>
     <div class="row" style="gap:8px">
-      <div class="fld" style="flex:1"><label>Distance (km)</label><input type="number" step="0.1" id="wk_km" placeholder="12.4" inputmode="decimal" value="${w&&w.km?w.km:''}"></div>
+      <div class="fld" style="flex:1" id="wk_kmf"><label>Distance (km)</label><input type="number" step="0.1" id="wk_km" placeholder="12.4" inputmode="decimal" value="${w&&w.km?w.km:''}"></div>
       <div class="fld" style="flex:1"><label>Calories burned</label><input type="number" id="wk_kcal" placeholder="820" inputmode="numeric" value="${w&&w.kcal?Math.round(w.kcal):''}"></div></div>
     <div class="row" style="gap:8px">
       <div class="fld" style="flex:1"><label>Average HR</label><input type="number" id="wk_hr" placeholder="148" inputmode="numeric" value="${w&&w.hr?w.hr:''}"></div>
       <div class="fld" style="flex:1"><label>Duration (min)</label><input type="number" id="wk_min" placeholder="68" inputmode="numeric" value="${w&&w.mins?w.mins:''}"></div></div>
     <div class="fld"><label>Start time <span class="tiny" style="text-transform:none;letter-spacing:0">— lets the app spot pre/post-run food</span></label>
       <input type="time" id="wk_time" value="${w&&w.time? w.time : timeStr(now)}"></div>
-    <div class="fld"><label>Type</label><select id="wk_kind">${
-      ['Easy run','Long run','Intervals / tempo','Race','Other']
-        .map(k=>`<option ${w&&w.kind===k?'selected':''}>${k}</option>`).join('')}</select></div>
+    <div class="fld"><label>Activity</label><select id="wk_kind" onchange="syncActivity()">${
+      (ALL_ACTIVITIES.includes(kind)?'':`<option selected>${esc(kind)}</option>`)
+      + ACTIVITIES.map(([grp,list])=>`<optgroup label="${grp}">${
+          list.map(k=>`<option ${kind===k?'selected':''}>${k}</option>`).join('')}</optgroup>`).join('')
+    }</select></div>
     <div class="hint" style="font-size:12.5px">On long runs, weigh yourself before and after — that's what separates dehydration from overdrinking behind your headaches. Log it under Weight.</div>
     <button class="btn full" onclick="commitWorkout(${w?`'${w.id}'`:'null'})">Save</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="closeSheet()">Cancel</button>`);
+  syncActivity();
+}
+/* Hide distance for activities that don't cover ground. The value is cleared
+   rather than merely hidden, so switching run → yoga can't leave 12.4 km
+   attached to a yoga session. */
+function syncActivity(){
+  const sel=document.getElementById('wk_kind'), fld=document.getElementById('wk_kmf');
+  if(!sel||!fld) return;
+  const show=hasDistance(sel.value);
+  fld.style.display = show ? '' : 'none';
+  if(!show){ const km=document.getElementById('wk_km'); if(km) km.value=''; }
 }
 function commitWorkout(id){
   const v=i=>+document.getElementById(i).value||0;
   const kc=v('wk_kcal');
-  if(!kc && !v('wk_km')){ alert('Enter at least distance or calories.'); return; }
+  if(!kc && !v('wk_km') && !v('wk_min')){
+    alert('Enter at least a duration — plus distance or calories if you have them.'); return; }
+  /* A yoga or weights session often has no calorie figure at all. Save it, but
+     be straight that it can't credit the net-calorie line rather than letting
+     you assume it did. */
+  if(!kc && !confirm('No calorie figure entered.\n\nThe session will be recorded, but it won\'t count towards today\'s net calories. Save it anyway?')) return;
   const rec={date:document.getElementById('wk_d').value||todayKey(),
     kind:document.getElementById('wk_kind').value, km:v('wk_km'), kcal:kc, hr:v('wk_hr'), mins:v('wk_min'),
     time:(document.getElementById('wk_time')||{}).value||''};
